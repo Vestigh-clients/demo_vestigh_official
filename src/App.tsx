@@ -3,8 +3,16 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import WhatsAppButton from "@/components/WhatsAppButton";
+import Index from "./pages/Index";
+import Shop from "./pages/Shop";
+import ProductPage from "./pages/ProductPage";
+import CategoryPage from "./pages/CategoryPage";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -14,11 +22,20 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Navbar />
+        <main className="min-h-screen">
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/product/:id" element={<ProductPage />} />
+            <Route path="/category/:slug" element={<CategoryPage />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
+        <Footer />
+        <WhatsAppButton />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

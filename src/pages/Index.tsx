@@ -320,9 +320,7 @@ const Index = () => {
 
         {hasMultipleSlides && (
           <>
-            <p className="absolute right-8 top-8 z-20 font-body text-[11px] font-light tracking-[0.1em] text-[rgba(255,255,255,0.5)]">
-              {String(currentIndicatorIndex + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}
-            </p>
+           
 
             <button
               type="button"

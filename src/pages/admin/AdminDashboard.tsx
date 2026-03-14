@@ -171,9 +171,9 @@ const AdminDashboard = () => {
 
     return {
       revenue: formatCurrency(stats.totalRevenue),
-      ordersToday: stats.ordersToday.toLocaleString("en-NG"),
-      ordersMonth: stats.ordersThisMonth.toLocaleString("en-NG"),
-      customers: stats.totalCustomers.toLocaleString("en-NG"),
+      ordersToday: stats.ordersToday.toLocaleString("en-GH"),
+      ordersMonth: stats.ordersThisMonth.toLocaleString("en-GH"),
+      customers: stats.totalCustomers.toLocaleString("en-GH"),
     };
   }, [stats]);
 

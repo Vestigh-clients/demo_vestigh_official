@@ -29,7 +29,7 @@ interface OrderPayload {
   }>;
 }
 
-const formatPrice = (value: number) => `₦${Math.max(0, Number(value || 0)).toLocaleString("en-NG")}`;
+const formatPrice = (value: number) => `GH₵${Math.max(0, Number(value || 0)).toLocaleString("en-GH")}`;
 
 const escapeHtml = (value: string): string =>
   value

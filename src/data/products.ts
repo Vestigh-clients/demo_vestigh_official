@@ -291,7 +291,7 @@ export const getBestSellers = () => products.filter((p) => p.isBestSeller);
 export const getProductById = (id: string) => products.find((p) => p.id === id);
 
 export const formatPrice = (price: number) =>
-  `\u20A6${price.toLocaleString("en-NG")}`;
+  `GH\u20B5${price.toLocaleString("en-GH")}`;
 
 export const getWhatsAppContactLink = () => {
   const message = "Hello, I have a general enquiry about Luxuriant.";

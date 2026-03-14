@@ -261,7 +261,7 @@ const FALLBACK_DISCOUNT_CODES: Record<
     type: "fixed_amount",
     value: 1500,
     minimumOrderAmount: 10000,
-    description: "Save 1500 NGN on orders over 10000 NGN",
+    description: "Save 1500 GHS on orders over 10000 GHS",
   },
 };
 

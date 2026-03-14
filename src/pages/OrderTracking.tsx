@@ -31,7 +31,7 @@ const formatChangedAt = (value: string | null): string | null => {
     return null;
   }
 
-  return date.toLocaleString("en-NG", {
+  return date.toLocaleString("en-GH", {
     year: "numeric",
     month: "short",
     day: "numeric",

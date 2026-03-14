@@ -473,7 +473,7 @@ const AdminOrderDetailPage = () => {
               View Customer &rarr;
             </Link>
             <p className="mt-2 font-body text-[11px] text-[#aaaaaa]">
-              {(order.customer.total_orders ?? 0).toLocaleString("en-NG")} orders ·{" "}
+              {(order.customer.total_orders ?? 0).toLocaleString("en-GH")} orders ·{" "}
               {formatCurrency(order.customer.total_spent ?? 0)} total spent
             </p>
           </section>

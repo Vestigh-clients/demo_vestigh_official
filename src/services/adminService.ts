@@ -309,13 +309,13 @@ const bucketByMonth = (date: Date) => `${date.getFullYear()}-${String(date.getMo
 
 const formatBucketLabel = (date: Date, byMonth: boolean) => {
   if (byMonth) {
-    return date.toLocaleDateString("en-NG", {
+    return date.toLocaleDateString("en-GH", {
       month: "short",
       year: "2-digit",
     });
   }
 
-  return date.toLocaleDateString("en-NG", {
+  return date.toLocaleDateString("en-GH", {
     day: "numeric",
     month: "short",
   });

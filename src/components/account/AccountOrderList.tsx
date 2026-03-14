@@ -13,7 +13,7 @@ const formatOrderDate = (value: string): string => {
     return value;
   }
 
-  return parsed.toLocaleDateString("en-NG", {
+  return parsed.toLocaleDateString("en-GH", {
     year: "numeric",
     month: "short",
     day: "numeric",

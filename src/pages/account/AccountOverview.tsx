@@ -16,7 +16,7 @@ const formatMemberSince = (value: string | null | undefined): string => {
     return "N/A";
   }
 
-  return parsed.toLocaleDateString("en-NG", {
+  return parsed.toLocaleDateString("en-GH", {
     month: "long",
     year: "numeric",
   });
@@ -96,7 +96,7 @@ const AccountOverview = () => {
         <div className="border-b-2 border-[#C4A882] pb-4">
           <p className="font-display text-[32px] text-[#1A1A1A]">{formatPrice(totalSpent)}</p>
           <p className="mt-1 font-body text-[10px] uppercase tracking-[0.12em] text-[#aaaaaa]">
-            Total Spent (&#8358;)
+            Total Spent (GH&#8373;)
           </p>
         </div>
 

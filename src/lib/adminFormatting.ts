@@ -1,28 +1,28 @@
 import { formatDistanceToNowStrict } from "date-fns";
 
-const amountFormatter = new Intl.NumberFormat("en-NG", {
+const amountFormatter = new Intl.NumberFormat("en-GH", {
   maximumFractionDigits: 0,
 });
 
-const compactAmountFormatter = new Intl.NumberFormat("en-NG", {
+const compactAmountFormatter = new Intl.NumberFormat("en-GH", {
   maximumFractionDigits: 1,
 });
 
-export const formatCurrency = (amount: number) => `\u20A6${amountFormatter.format(Number.isFinite(amount) ? amount : 0)}`;
+export const formatCurrency = (amount: number) => `GH\u20B5${amountFormatter.format(Number.isFinite(amount) ? amount : 0)}`;
 
 export const formatCompactCurrency = (amount: number) => {
   const safeAmount = Number.isFinite(amount) ? amount : 0;
   const abs = Math.abs(safeAmount);
 
   if (abs >= 1_000_000) {
-    return `\u20A6${compactAmountFormatter.format(safeAmount / 1_000_000)}M`;
+    return `GH\u20B5${compactAmountFormatter.format(safeAmount / 1_000_000)}M`;
   }
 
   if (abs >= 1_000) {
-    return `\u20A6${compactAmountFormatter.format(safeAmount / 1_000)}k`;
+    return `GH\u20B5${compactAmountFormatter.format(safeAmount / 1_000)}k`;
   }
 
-  return `\u20A6${amountFormatter.format(safeAmount)}`;
+  return `GH\u20B5${amountFormatter.format(safeAmount)}`;
 };
 
 export const formatDateShort = (value: string) => {

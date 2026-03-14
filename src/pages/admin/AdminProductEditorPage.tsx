@@ -506,7 +506,7 @@ const AdminProductEditorPage = () => {
             <div>
               <label className="font-body text-[11px] uppercase tracking-[0.1em] text-[#aaaaaa]">Selling Price *</label>
               <div className="mt-2 flex items-center border-b border-[#d4ccc2] pb-2">
-                <span className="mr-2 font-body text-[14px] text-[#aaaaaa]">&#8358;</span>
+                <span className="mr-2 font-body text-[14px] text-[#aaaaaa]">GH&#8373;</span>
                 <input
                   value={price}
                   onChange={(event) => setPrice(event.target.value.replace(/[^\d.]/g, ""))}
@@ -517,7 +517,7 @@ const AdminProductEditorPage = () => {
             <div>
               <label className="font-body text-[11px] uppercase tracking-[0.1em] text-[#aaaaaa]">Compare At Price</label>
               <div className="mt-2 flex items-center border-b border-[#d4ccc2] pb-2">
-                <span className="mr-2 font-body text-[14px] text-[#aaaaaa]">&#8358;</span>
+                <span className="mr-2 font-body text-[14px] text-[#aaaaaa]">GH&#8373;</span>
                 <input
                   value={compareAtPrice}
                   onChange={(event) => setCompareAtPrice(event.target.value.replace(/[^\d.]/g, ""))}
@@ -532,7 +532,7 @@ const AdminProductEditorPage = () => {
             <div>
               <label className="font-body text-[11px] uppercase tracking-[0.1em] text-[#aaaaaa]">Cost Price</label>
               <div className="mt-2 flex items-center border-b border-[#d4ccc2] pb-2">
-                <span className="mr-2 font-body text-[14px] text-[#aaaaaa]">&#8358;</span>
+                <span className="mr-2 font-body text-[14px] text-[#aaaaaa]">GH&#8373;</span>
                 <input
                   value={costPrice}
                   onChange={(event) => setCostPrice(event.target.value.replace(/[^\d.]/g, ""))}

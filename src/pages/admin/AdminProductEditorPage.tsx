@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { storeConfig } from "@/config/store.config";
+import { useStorefrontConfig } from "@/contexts/StorefrontConfigContext";
+import { useThemeConfig } from "@/contexts/ThemeContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createAdminProduct,
@@ -233,6 +234,12 @@ const AdminProductEditorPage = () => {
   const isEditMode = Boolean(id);
   const navigate = useNavigate();
   const productImagesInputRef = useRef<HTMLInputElement | null>(null);
+  const { storefrontConfig } = useStorefrontConfig();
+  const {
+    preset: {
+      tokens: { primary: primaryThemeColor },
+    },
+  } = useThemeConfig();
 
   const [categories, setCategories] = useState<Array<{ id: string; name: string; slug: string }>>([]);
   const [isLoading, setIsLoading] = useState(isEditMode);
@@ -635,7 +642,7 @@ const AdminProductEditorPage = () => {
       [localId]: {
         value: "",
         withColor: false,
-        color_hex: storeConfig.theme.primaryColor,
+        color_hex: primaryThemeColor,
       },
     }));
     setNewOptionTypeName("");
@@ -675,7 +682,7 @@ const AdminProductEditorPage = () => {
       const previous = current[optionTypeLocalId] ?? {
         value: "",
         withColor: false,
-        color_hex: storeConfig.theme.primaryColor,
+        color_hex: primaryThemeColor,
       };
       return {
         ...current,
@@ -688,7 +695,7 @@ const AdminProductEditorPage = () => {
     const draft = valueDrafts[optionTypeLocalId] ?? {
       value: "",
       withColor: false,
-      color_hex: storeConfig.theme.primaryColor,
+      color_hex: primaryThemeColor,
     };
     const normalizedValue = draft.value.trim();
     if (!normalizedValue) {
@@ -1676,7 +1683,7 @@ const AdminProductEditorPage = () => {
             />
             <div className="mt-2 flex items-center justify-between gap-4">
               <p className="font-body text-[10px] text-[var(--color-muted-soft)]">
-                {`${storeConfig.storeName.toLowerCase().replace(/\s+/g, "")}.com/shop/${slug || "product-slug"}`}
+                {`${storefrontConfig.storeName.toLowerCase().replace(/\s+/g, "")}.com/shop/${slug || "product-slug"}`}
               </p>
               <button
                 type="button"
@@ -1965,7 +1972,7 @@ const AdminProductEditorPage = () => {
                   const draft = valueDrafts[optionType.local_id] ?? {
                     value: "",
                     withColor: false,
-                    color_hex: storeConfig.theme.primaryColor,
+                    color_hex: primaryThemeColor,
                   };
 
                   return (

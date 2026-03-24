@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { storeConfig } from "@/config/store.config";
+import { useStorefrontConfig } from "@/contexts/StorefrontConfigContext";
 import { cn } from "@/lib/utils";
 
 interface StoreLogoProps {
@@ -28,15 +28,16 @@ const resolveLogoUrl = (logoUrl: string) => {
 };
 
 const StoreLogo = ({ className, textClassName, alt }: StoreLogoProps) => {
+  const { storefrontConfig } = useStorefrontConfig();
   const [hasImageError, setHasImageError] = useState(false);
-  const resolvedLogoUrl = resolveLogoUrl(storeConfig.logoUrl);
+  const resolvedLogoUrl = resolveLogoUrl(storefrontConfig.logoUrl);
   const hasLogo = Boolean(resolvedLogoUrl) && !hasImageError;
 
   if (hasLogo) {
     return (
       <img
         src={resolvedLogoUrl}
-        alt={alt ?? storeConfig.storeName}
+        alt={alt ?? storefrontConfig.storeName}
         className={className}
         onError={() => setHasImageError(true)}
       />
@@ -45,7 +46,7 @@ const StoreLogo = ({ className, textClassName, alt }: StoreLogoProps) => {
 
   return (
     <span className={cn("font-display text-[24px] italic text-foreground", textClassName)}>
-      {storeConfig.storeName}
+      {storefrontConfig.storeName}
     </span>
   );
 };

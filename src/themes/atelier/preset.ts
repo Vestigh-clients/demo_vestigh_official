@@ -1,0 +1,43 @@
+import type { ThemePreset } from "../registry";
+
+export const atelierThemePreset: ThemePreset = {
+  key: "atelier",
+  label: "Atelier",
+  description: "Deep navy and clean ivory with editorial serif typography.",
+  tokens: {
+    canvas: "#FFFFFF",
+    surface: "#FFFFFF",
+    surfaceAlt: "#F4F7F8",
+    surfaceStrong: "#D7E0E4",
+    textPrimary: "#243843",
+    textMuted: "#5E6F76",
+    textInverse: "#FFFFFF",
+    border: "#D7E0E4",
+    borderStrong: "#BCCAD0",
+    primary: "#243843",
+    primaryForeground: "#FFFFFF",
+    accent: "#4A5D66",
+    accentForeground: "#FFFFFF",
+    success: "#2E7D32",
+    successForeground: "#FFFFFF",
+    danger: "#C0392B",
+    dangerForeground: "#FFFFFF",
+    navSolidBg: "#243843",
+    navSolidFg: "#FFFFFF",
+    navSolidInteractive: "#D7E0E4",
+    focusRing: "#4A5D66",
+    shadowSoft: "0 18px 40px rgba(36, 56, 67, 0.08)",
+  },
+  typography: {
+    headingFamily: "Playfair Display",
+    bodyFamily: "Inter",
+    headingFallback: "Georgia, serif",
+    bodyFallback: "system-ui, sans-serif",
+  },
+  radius: {
+    sm: "0.375rem",
+    md: "0.75rem",
+    lg: "1rem",
+    pill: "9999px",
+  },
+};

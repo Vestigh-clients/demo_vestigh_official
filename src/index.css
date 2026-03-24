@@ -1,69 +1,81 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --color-primary: var(--color-primary);
-    --color-secondary: var(--color-secondary);
-    --color-accent: var(--color-accent);
-    --color-navbar-solid: var(--color-secondary);
-    --color-navbar-solid-foreground: #1A1A1A;
-    --color-navbar-solid-interactive: var(--color-accent);
-    --color-muted: var(--color-muted);
-    --color-muted-soft: var(--color-muted-soft);
-    --color-border: var(--color-border);
-    --color-surface: var(--color-surface);
-    --color-surface-alt: var(--color-surface-alt);
-    --color-surface-strong: #E3DDD4;
-    --color-danger: var(--color-danger);
-    --color-success: var(--color-success);
+    --theme-canvas: #ffffff;
+    --theme-surface: #ffffff;
+    --theme-surface-alt: #f4f7f8;
+    --theme-surface-strong: #d7e0e4;
+    --theme-text-primary: #243843;
+    --theme-text-muted: #5e6f76;
+    --theme-text-inverse: #ffffff;
+    --theme-border: #d7e0e4;
+    --theme-border-strong: #bccad0;
+    --theme-primary: #243843;
+    --theme-primary-foreground: #ffffff;
+    --theme-accent: #4a5d66;
+    --theme-accent-foreground: #ffffff;
+    --theme-success: #2e7d32;
+    --theme-success-foreground: #ffffff;
+    --theme-danger: #c0392b;
+    --theme-danger-foreground: #ffffff;
+    --theme-nav-solid-bg: #243843;
+    --theme-nav-solid-fg: #ffffff;
+    --theme-nav-solid-interactive: #d7e0e4;
+    --theme-focus-ring: #4a5d66;
+    --theme-shadow-soft: 0 18px 40px rgba(36, 56, 67, 0.08);
 
-    --color-primary-rgb: 26, 26, 26;
-    --color-secondary-rgb: 245, 240, 232;
-    --color-accent-rgb: 196, 168, 130;
-    --color-navbar-solid-rgb: 245, 240, 232;
-    --color-navbar-solid-foreground-rgb: 26, 26, 26;
-    --color-navbar-solid-interactive-rgb: 196, 168, 130;
+    --color-primary: #243843;
+    --color-secondary: #ffffff;
+    --color-accent: #4a5d66;
+    --color-navbar-solid: #243843;
+    --color-navbar-solid-foreground: #ffffff;
+    --color-navbar-solid-interactive: #d7e0e4;
+    --color-muted: #5e6f76;
+    --color-muted-soft: #95a2a8;
+    --color-border: #d7e0e4;
+    --color-surface: #ffffff;
+    --color-surface-alt: #f4f7f8;
+    --color-surface-strong: #d7e0e4;
+    --color-danger: #c0392b;
+    --color-success: #2e7d32;
+
+    --color-primary-rgb: 36, 56, 67;
+    --color-secondary-rgb: 255, 255, 255;
+    --color-accent-rgb: 74, 93, 102;
+    --color-navbar-solid-rgb: 36, 56, 67;
+    --color-navbar-solid-foreground-rgb: 255, 255, 255;
+    --color-navbar-solid-interactive-rgb: 215, 224, 228;
     --color-danger-rgb: 192, 57, 43;
     --color-success-rgb: 46, 125, 50;
 
-    --font-heading: 'Cormorant Garamond', Georgia, serif;
-    --font-body: 'Inter', system-ui, sans-serif;
-    --border-radius: 0.5rem;
-
-    --background: 37 40% 94%;
-    --foreground: 0 0% 10%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
-
-    --primary: 0 0% 10%;
-    --primary-foreground: 37 40% 94%;
-
-    --secondary: 36 28% 90%;
-    --secondary-foreground: 0 0% 10%;
-
-    --muted: 36 22% 88%;
-    --muted-foreground: 0 0% 38%;
-
-    --accent: 35 36% 64%;
-    --accent-foreground: 0 0% 10%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 35 20% 82%;
-    --input: 35 20% 82%;
-    --ring: 35 36% 64%;
-
-    --radius: var(--border-radius);
+    --font-heading: Georgia, serif;
+    --font-body: system-ui, sans-serif;
     --font-display: var(--font-heading);
+    --border-radius: 0.75rem;
+    --radius: var(--border-radius);
+
+    --background: 0 0% 100%;
+    --foreground: 203 30% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 203 30% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 203 30% 20%;
+    --primary: 203 30% 20%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 200 25% 97%;
+    --secondary-foreground: 203 30% 20%;
+    --muted: 200 25% 97%;
+    --muted-foreground: 203 12% 42%;
+    --accent: 202 16% 35%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 6 64% 46%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 199 19% 86%;
+    --input: 199 19% 86%;
+    --ring: 202 16% 35%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;

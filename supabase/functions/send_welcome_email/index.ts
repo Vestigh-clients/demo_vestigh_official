@@ -1,12 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
+import {
+  escapeHtml,
+  formatFromEmail,
+  loadEmailBranding,
+  normalizeSiteUrl,
+  renderEmailShell,
+  safeString,
+} from "../_shared/emailBrand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SITE_URL = Deno.env.get("SITE_URL") ?? "https://luxuriantgh.store";
-const fromEmail = "Luxuriant <hello@luxuriantgh.store>";
+const SITE_URL = Deno.env.get("SITE_URL") ?? "https://example.com";
 
 interface CustomerRow {
   first_name: string | null;
@@ -31,17 +38,6 @@ const asRecord = (value: unknown): Record<string, unknown> | null => {
   return value as Record<string, unknown>;
 };
 
-const safeString = (value: unknown): string | null =>
-  typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-
 const getSettingValue = async (
   adminClient: ReturnType<typeof createClient>,
   key: string,
@@ -55,22 +51,22 @@ const getSettingValue = async (
     return null;
   }
 
-  const value = asRecord(data)?.value;
-  if (typeof value === "string" && value.trim()) {
-    return value.trim();
+  const rawValue = asRecord(data)?.value;
+  if (typeof rawValue === "string" && rawValue.trim()) {
+    return rawValue.trim();
   }
 
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
+  if (typeof rawValue === "number" || typeof rawValue === "boolean") {
+    return String(rawValue);
   }
 
-  const nested = asRecord(value);
-  if (!nested) {
+  const nestedRecord = asRecord(rawValue);
+  if (!nestedRecord) {
     return null;
   }
 
   for (const nestedKey of ["value", "email", "address", "url"]) {
-    const candidate = safeString(nested[nestedKey]);
+    const candidate = safeString(nestedRecord[nestedKey]);
     if (candidate) {
       return candidate;
     }
@@ -165,115 +161,74 @@ Deno.serve(async (request: Request) => {
     }
 
     const firstName = safeString(customer.first_name) || "there";
-    const siteUrl =
-      safeString(await getSettingValue(adminClient, "site_url")) ||
-      SITE_URL;
-    const normalizedSiteUrl = siteUrl.replace(/\/+$/, "");
-    const instagramUrl = safeString(await getSettingValue(adminClient, "instagram_url")) || "https://instagram.com/luxuriant";
-    const tiktokUrl = safeString(await getSettingValue(adminClient, "tiktok_url")) || "https://tiktok.com/@luxuriant";
-    const facebookUrl = safeString(await getSettingValue(adminClient, "facebook_url")) || "https://facebook.com/luxuriant";
-    const unsubscribeUrl =
-      safeString(await getSettingValue(adminClient, "unsubscribe_url")) || `${normalizedSiteUrl}/unsubscribe`;
     const fulfillmentDays = await resolveFulfillmentDays(adminClient);
-
-    const categories = [
-      { label: "Hair Care", href: `${normalizedSiteUrl}/hair-care` },
-      { label: "Men", href: `${normalizedSiteUrl}/men` },
-      { label: "Women", href: `${normalizedSiteUrl}/women` },
-      { label: "Bags", href: `${normalizedSiteUrl}/bags` },
-      { label: "Shoes", href: `${normalizedSiteUrl}/shoes` },
-    ];
-
-    const categoriesHtml = categories
-      .map(
-        (category) =>
-          `<a href="${escapeHtml(category.href)}" style="color:#C4A882;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;">${escapeHtml(
-            category.label,
-          )}</a>`,
-      )
-      .join('<span style="color:#C4A882;">&nbsp;|&nbsp;</span>');
-
+    const snapshot = await loadEmailBranding(adminClient, { fallbackSiteUrl: SITE_URL });
+    const normalizedSiteUrl = normalizeSiteUrl(snapshot.identity.siteUrl);
     const shopUrl = `${normalizedSiteUrl}/shop`;
-    const emailHtml = `
-      <div style="background:#F5F0E8;padding:28px 14px;font-family:Georgia,'Times New Roman',Times,serif;">
-        <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border:1px solid #E3DDD4;">
-          <div style="background:#1A1A1A;padding:32px;text-align:center;">
-            <p style="margin:0;font-size:20px;color:#F5F0E8;letter-spacing:0.2em;">LUXURIANT</p>
-          </div>
 
-          <div style="padding:40px;">
-            <p style="margin:0 0 14px 0;font-size:18px;line-height:1.6;color:#1A1A1A;">Hi ${escapeHtml(firstName)},</p>
-            <p style="margin:0 0 14px 0;font-size:16px;line-height:1.7;color:#1A1A1A;">
-              Welcome to Luxuriant. You now have access to our full collection of luxury fashion and hair care essentials.
-            </p>
+    const contentHtml = `
+      <p style="margin:0 0 14px 0;font-family:${snapshot.typography.body};font-size:18px;line-height:1.6;color:${snapshot.colors.textPrimary};">
+        Hi ${escapeHtml(firstName)},
+      </p>
+      <h1 style="margin:0 0 16px 0;font-family:${snapshot.typography.heading};font-size:36px;line-height:1.1;color:${snapshot.colors.textPrimary};">
+        Welcome to ${escapeHtml(snapshot.identity.storeName)}.
+      </h1>
+      <p style="margin:0 0 14px 0;font-family:${snapshot.typography.body};font-size:15px;line-height:1.75;color:${snapshot.colors.textPrimary};">
+        Your account is ready. You can now browse the full collection, check out faster, and track orders from one place.
+      </p>
 
-            <div style="margin:16px 0 22px 0;">
-              <p style="margin:0 0 8px 0;font-size:14px;line-height:1.7;color:#1A1A1A;">- Premium quality, curated with care</p>
-              <p style="margin:0 0 8px 0;font-size:14px;line-height:1.7;color:#1A1A1A;">- Nationwide delivery across Ghana</p>
-              <p style="margin:0;font-size:14px;line-height:1.7;color:#1A1A1A;">- Orders fulfilled within ${fulfillmentDays} days</p>
-            </div>
+      <div style="margin:18px 0 22px 0;padding:18px;border:1px solid ${snapshot.colors.border};background:${snapshot.colors.canvas};">
+        <p style="margin:0 0 10px 0;font-family:${snapshot.typography.body};font-size:13px;line-height:1.7;color:${snapshot.colors.textPrimary};">
+          Premium products curated with care
+        </p>
+        <p style="margin:0 0 10px 0;font-family:${snapshot.typography.body};font-size:13px;line-height:1.7;color:${snapshot.colors.textPrimary};">
+          Nationwide delivery across Ghana
+        </p>
+        <p style="margin:0;font-family:${snapshot.typography.body};font-size:13px;line-height:1.7;color:${snapshot.colors.textPrimary};">
+          Orders fulfilled within ${fulfillmentDays} day${fulfillmentDays === 1 ? "" : "s"}
+        </p>
+      </div>
 
-            <div style="margin-top:24px;">
-              <a href="${escapeHtml(shopUrl)}" style="display:inline-block;background:#1A1A1A;color:#F5F0E8;padding:14px 32px;text-decoration:none;border-radius:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;">
-                Start Shopping
-              </a>
-            </div>
+      <div style="margin-top:24px;">
+        <a href="${escapeHtml(shopUrl)}" style="display:inline-block;background:${snapshot.colors.primary};color:${snapshot.colors.primaryForeground};padding:14px 28px;text-decoration:none;font-family:${snapshot.typography.body};font-size:11px;letter-spacing:0.15em;text-transform:uppercase;">
+          Start Shopping
+        </a>
+      </div>
 
-            <div style="margin-top:18px;">
-              <p style="margin:0 0 8px 0;font-size:13px;color:#1A1A1A;">Browse by category:</p>
-              <div style="white-space:nowrap;overflow-x:auto;">${categoriesHtml}</div>
-            </div>
-
-            <div style="margin-top:24px;">
-              <p style="margin:0 0 8px 0;font-size:15px;line-height:1.7;color:#1A1A1A;">Thank you for joining us.</p>
-              <p style="margin:0;font-size:15px;line-height:1.7;color:#1A1A1A;">- The Luxuriant Team</p>
-            </div>
-          </div>
-
-          <div style="padding:22px 40px 34px;border-top:1px solid #E3DDD4;text-align:center;">
-            <p style="margin:0 0 8px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:10px;color:#AAAAAA;">
-              <a href="${escapeHtml(instagramUrl)}" style="color:#AAAAAA;text-decoration:none;">Instagram</a>
-              &nbsp;|&nbsp;
-              <a href="${escapeHtml(tiktokUrl)}" style="color:#AAAAAA;text-decoration:none;">TikTok</a>
-              &nbsp;|&nbsp;
-              <a href="${escapeHtml(facebookUrl)}" style="color:#AAAAAA;text-decoration:none;">Facebook</a>
-            </p>
-            <p style="margin:0 0 8px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:10px;color:#AAAAAA;">
-              <a href="${escapeHtml(unsubscribeUrl)}" style="color:#AAAAAA;text-decoration:underline;">Unsubscribe</a>
-            </p>
-            <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:10px;color:#AAAAAA;">
-              You're receiving this because you created an account at ${escapeHtml(normalizedSiteUrl)}
-            </p>
-          </div>
-        </div>
+      <div style="margin-top:24px;">
+        <p style="margin:0 0 8px 0;font-family:${snapshot.typography.body};font-size:15px;line-height:1.7;color:${snapshot.colors.textPrimary};">
+          We’re glad you’re here.
+        </p>
+        <p style="margin:0;font-family:${snapshot.typography.body};font-size:15px;line-height:1.7;color:${snapshot.colors.textPrimary};">
+          The ${escapeHtml(snapshot.identity.storeName)} Team
+        </p>
       </div>
     `;
+
+    const emailHtml = renderEmailShell({
+      snapshot,
+      contentHtml,
+      footerNote: `You're receiving this because you created an account at ${normalizedSiteUrl}`,
+    });
 
     const emailText = [
       `Hi ${firstName},`,
       "",
-      "Welcome to Luxuriant. You now have access to our full collection of luxury fashion and hair care essentials.",
+      `Welcome to ${snapshot.identity.storeName}.`,
+      "Your account is ready. You can now browse the full collection, check out faster, and track orders from one place.",
       "",
-      "- Premium quality, curated with care",
+      "- Premium products curated with care",
       "- Nationwide delivery across Ghana",
-      `- Orders fulfilled within ${fulfillmentDays} days`,
+      `- Orders fulfilled within ${fulfillmentDays} day${fulfillmentDays === 1 ? "" : "s"}`,
       "",
       `Start Shopping: ${shopUrl}`,
       "",
-      "Browse by category:",
-      `Hair Care: ${normalizedSiteUrl}/hair-care`,
-      `Men: ${normalizedSiteUrl}/men`,
-      `Women: ${normalizedSiteUrl}/women`,
-      `Bags: ${normalizedSiteUrl}/bags`,
-      `Shoes: ${normalizedSiteUrl}/shoes`,
+      `The ${snapshot.identity.storeName} Team`,
       "",
-      "Thank you for joining us.",
-      "- The Luxuriant Team",
-      "",
-      `Instagram: ${instagramUrl}`,
-      `TikTok: ${tiktokUrl}`,
-      `Facebook: ${facebookUrl}`,
-      `Unsubscribe: ${unsubscribeUrl}`,
+      `Instagram: ${snapshot.identity.instagramUrl || "-"}`,
+      `TikTok: ${snapshot.identity.tiktokUrl || "-"}`,
+      `Facebook: ${snapshot.identity.facebookUrl || "-"}`,
+      `Unsubscribe: ${snapshot.identity.unsubscribeUrl}`,
       `You're receiving this because you created an account at ${normalizedSiteUrl}`,
     ].join("\n");
 
@@ -284,13 +239,17 @@ Deno.serve(async (request: Request) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: fromEmail,
+        from: formatFromEmail(
+          snapshot.identity.storeName,
+          Deno.env.get("WELCOME_FROM_EMAIL_ADDRESS") ?? "hello@luxuriantgh.store",
+        ),
         to: [customerEmail],
-        subject: `Welcome to Luxuriant, ${firstName}.`,
+        reply_to: snapshot.identity.supportEmail,
+        subject: `Welcome to ${snapshot.identity.storeName}, ${firstName}.`,
         html: emailHtml,
         text: emailText,
         headers: {
-          "List-Unsubscribe": `<${unsubscribeUrl}>`,
+          "List-Unsubscribe": `<${snapshot.identity.unsubscribeUrl}>`,
         },
       }),
     });

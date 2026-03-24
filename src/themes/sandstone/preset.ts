@@ -1,0 +1,43 @@
+import type { ThemePreset } from "../registry";
+
+export const sandstoneThemePreset: ThemePreset = {
+  key: "sandstone",
+  label: "Sandstone",
+  description: "Warm neutrals with copper accents and a more tactile editorial feel.",
+  tokens: {
+    canvas: "#F7F3EC",
+    surface: "#FFFDF9",
+    surfaceAlt: "#EFE4D7",
+    surfaceStrong: "#D9C8B5",
+    textPrimary: "#3B2A1F",
+    textMuted: "#6E5A4D",
+    textInverse: "#FFF8F0",
+    border: "#D9C8B5",
+    borderStrong: "#C4A78B",
+    primary: "#3B2A1F",
+    primaryForeground: "#FFF8F0",
+    accent: "#B67845",
+    accentForeground: "#FFF8F0",
+    success: "#2E7D32",
+    successForeground: "#FFF8F0",
+    danger: "#B53E2E",
+    dangerForeground: "#FFF8F0",
+    navSolidBg: "#FFF8F0",
+    navSolidFg: "#3B2A1F",
+    navSolidInteractive: "#B67845",
+    focusRing: "#B67845",
+    shadowSoft: "0 20px 44px rgba(59, 42, 31, 0.12)",
+  },
+  typography: {
+    headingFamily: "Fraunces",
+    bodyFamily: "Manrope",
+    headingFallback: "Georgia, serif",
+    bodyFallback: "system-ui, sans-serif",
+  },
+  radius: {
+    sm: "0.5rem",
+    md: "0.875rem",
+    lg: "1.25rem",
+    pill: "9999px",
+  },
+};

@@ -6,6 +6,7 @@ import ProductFetchErrorState from "@/components/products/ProductFetchErrorState
 import ProductImagePlaceholder from "@/components/products/ProductImagePlaceholder";
 import { storeConfig } from "@/config/store.config";
 import { useCart } from "@/contexts/CartContext";
+import { useThemeConfig } from "@/contexts/ThemeContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getCategoryLabel } from "@/lib/categories";
 import { formatPrice } from "@/lib/price";
@@ -276,6 +277,11 @@ const mapOptionTypeRecord = (value: unknown): ProductOptionType | null => {
 const ProductPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const { addToCart } = useCart();
+  const {
+    preset: {
+      tokens: { primary: primaryThemeColor },
+    },
+  } = useThemeConfig();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -973,7 +979,7 @@ const ProductPage = () => {
                               className={`relative h-7 w-7 rounded-full border-2 transition-all duration-150 ease-in ${
                                 isSelected ? "scale-110 border-[var(--color-primary)]" : "border-transparent"
                               } ${isUnavailable ? "cursor-not-allowed opacity-35" : "cursor-pointer"}`}
-                              style={{ backgroundColor: optionValue.color_hex || storeConfig.theme.primaryColor }}
+                              style={{ backgroundColor: optionValue.color_hex || primaryThemeColor }}
                             >
                               {isUnavailable ? (
                                 <span

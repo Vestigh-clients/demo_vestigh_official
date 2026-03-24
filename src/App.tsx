@@ -46,36 +46,38 @@ import AdminShippingRatesPage from "./pages/admin/AdminShippingRatesPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminPaymentsPage from "./pages/admin/AdminPaymentsPage";
+import { StorefrontConfigProvider, useStorefrontConfig } from "@/contexts/StorefrontConfigContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { storeConfig } from "@/config/store.config";
 
 const queryClient = new QueryClient();
 
 const AppShell = () => {
+  const { storefrontConfig } = useStorefrontConfig();
   const location = useLocation();
   const isAuthRoute = location.pathname.startsWith("/auth/");
   const isAdminRoute = location.pathname.startsWith("/admin");
   const hideStoreChrome = isAuthRoute || isAdminRoute;
 
   useEffect(() => {
-    document.title = storeConfig.storeName;
+    document.title = storefrontConfig.storeName;
 
     const descriptionMeta = document.querySelector('meta[name="description"]');
     if (descriptionMeta) {
-      descriptionMeta.setAttribute("content", storeConfig.storeTagline || storeConfig.storeName);
+      descriptionMeta.setAttribute("content", storefrontConfig.storeTagline || storefrontConfig.storeName);
     }
 
     const existingFavicon = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
     if (existingFavicon) {
-      existingFavicon.href = storeConfig.faviconUrl;
+      existingFavicon.href = storefrontConfig.faviconUrl;
       return;
     }
 
     const favicon = document.createElement("link");
     favicon.rel = "icon";
-    favicon.href = storeConfig.faviconUrl;
+    favicon.href = storefrontConfig.faviconUrl;
     document.head.appendChild(favicon);
-  }, [location.pathname]);
+  }, [location.pathname, storefrontConfig.faviconUrl, storefrontConfig.storeName, storefrontConfig.storeTagline]);
 
   return (
     <>
@@ -176,11 +178,13 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <CartProvider>
-          <ThemeProvider>
-            <BrowserRouter>
-              <AppShell />
-            </BrowserRouter>
-          </ThemeProvider>
+          <StorefrontConfigProvider>
+            <ThemeProvider>
+              <BrowserRouter>
+                <AppShell />
+              </BrowserRouter>
+            </ThemeProvider>
+          </StorefrontConfigProvider>
         </CartProvider>
       </AuthProvider>
     </TooltipProvider>

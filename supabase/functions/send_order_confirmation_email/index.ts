@@ -1,11 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
+import {
+  escapeHtml,
+  formatFromEmail,
+  loadEmailBranding,
+  normalizeSiteUrl,
+  renderEmailShell,
+  safeString,
+} from "../_shared/emailBrand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SITE_URL = Deno.env.get("SITE_URL") ?? "https://luxuriantgh.store";
+const SITE_URL = Deno.env.get("SITE_URL") ?? "https://example.com";
 
 interface OrderPayload {
   id: string;
@@ -32,15 +40,18 @@ interface OrderPayload {
   }>;
 }
 
-const formatPrice = (value: number) => `GH₵${Math.max(0, Number(value || 0)).toLocaleString("en-GH")}`;
-
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+const formatAmount = (value: number) => {
+  try {
+    return new Intl.NumberFormat("en-GH", {
+      style: "currency",
+      currency: "GHS",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Math.max(0, Number(value || 0)));
+  } catch {
+    return Math.max(0, Number(value || 0)).toLocaleString("en-GH");
+  }
+};
 
 const titleCase = (value: string): string =>
   value
@@ -136,9 +147,7 @@ Deno.serve(async (request: Request) => {
 
     const { data: orderItemsData, error: orderItemsError } = await adminClient
       .from("order_items")
-      .select(
-        "product_name, product_image_url, quantity, unit_price, subtotal, variant_label",
-      )
+      .select("product_name, product_image_url, quantity, unit_price, subtotal, variant_label")
       .eq("order_id", order.id)
       .order("created_at", { ascending: true });
 
@@ -161,36 +170,36 @@ Deno.serve(async (request: Request) => {
     }
 
     const firstNameRaw = order.customer?.first_name?.trim() || "there";
-    const firstName = escapeHtml(firstNameRaw);
-    const safeOrderNumber = escapeHtml(order.order_number);
-    const safePaymentMethod = escapeHtml(titleCase(order.payment_method ?? "not specified"));
-
     const discountAmount = Math.max(0, Number(order.discount_amount || 0));
     const addressLines = buildAddressLines(order.shipping_address_snapshot);
     const { minDays, maxDays } = normalizeBusinessDayWindow(order.shipping_address_snapshot);
-    const trackingBaseUrl = SITE_URL.replace(/\/+$/, "");
+    const snapshot = await loadEmailBranding(adminClient, { fallbackSiteUrl: SITE_URL });
+    const trackingBaseUrl = normalizeSiteUrl(snapshot.identity.siteUrl);
     const trackingUrl = `${trackingBaseUrl}/orders/${encodeURIComponent(order.order_number)}`;
 
     const itemRows = orderItems
       .map((item) => {
         const imageHtml = item.product_image_url
-          ? `<img src="${escapeHtml(item.product_image_url)}" alt="${escapeHtml(item.product_name)}" width="54" height="72" style="width:54px;height:72px;object-fit:cover;border-radius:2px;border:1px solid #e8e2d9;" />`
-          : `<div style="width:54px;height:72px;border:1px solid #e8e2d9;border-radius:2px;background:#f0ebe3;"></div>`;
-        const variantLabel = typeof item.variant_label === "string" && item.variant_label.trim() ? item.variant_label.trim() : null;
+          ? `<img src="${escapeHtml(item.product_image_url)}" alt="${escapeHtml(item.product_name)}" width="54" height="72" style="width:54px;height:72px;object-fit:cover;border:1px solid ${snapshot.colors.border};" />`
+          : `<div style="width:54px;height:72px;border:1px solid ${snapshot.colors.border};"></div>`;
+        const variantLabel =
+          typeof item.variant_label === "string" && item.variant_label.trim() ? item.variant_label.trim() : null;
         const variantHtml = variantLabel
-          ? `<div style="font-family:Inter,system-ui,sans-serif;font-size:11px;color:#888;margin-top:2px;">${escapeHtml(variantLabel)}</div>`
+          ? `<div style="font-family:${snapshot.typography.body};font-size:11px;color:${snapshot.colors.textMuted};margin-top:2px;">${escapeHtml(
+              variantLabel,
+            )}</div>`
           : "";
 
         return `
           <tr>
-            <td style="padding:10px 0;vertical-align:top;">${imageHtml}</td>
-            <td style="padding:10px 12px 10px 12px;vertical-align:top;">
-              <div style="font-family:Inter,system-ui,sans-serif;font-size:13px;color:#1A1A1A;">${escapeHtml(item.product_name)}</div>
+            <td style="padding:10px 0;vertical-align:top;border-top:1px solid ${snapshot.colors.border};">${imageHtml}</td>
+            <td style="padding:10px 12px 10px 12px;vertical-align:top;border-top:1px solid ${snapshot.colors.border};">
+              <div style="font-family:${snapshot.typography.body};font-size:13px;color:${snapshot.colors.textPrimary};">${escapeHtml(item.product_name)}</div>
               ${variantHtml}
-              <div style="font-family:Inter,system-ui,sans-serif;font-size:11px;color:#888;">Qty: ${item.quantity}</div>
+              <div style="font-family:${snapshot.typography.body};font-size:11px;color:${snapshot.colors.textMuted};">Qty: ${item.quantity}</div>
             </td>
-            <td style="padding:10px 0;vertical-align:top;text-align:right;font-family:Inter,system-ui,sans-serif;font-size:13px;color:#1A1A1A;">
-              ${formatPrice(item.subtotal)}
+            <td style="padding:10px 0;vertical-align:top;text-align:right;border-top:1px solid ${snapshot.colors.border};font-family:${snapshot.typography.body};font-size:13px;color:${snapshot.colors.textPrimary};">
+              ${formatAmount(item.subtotal)}
             </td>
           </tr>
         `;
@@ -200,76 +209,83 @@ Deno.serve(async (request: Request) => {
     const addressHtml = addressLines.map((line) => `<div>${escapeHtml(line)}</div>`).join("");
 
     const mobileMoneyLine = order.mobile_money_number
-      ? `<div style="font-family:Inter,system-ui,sans-serif;font-size:12px;color:#aaa;">${escapeHtml(order.mobile_money_number)}</div>`
+      ? `<div style="font-family:${snapshot.typography.body};font-size:12px;color:${snapshot.colors.textMuted};">${escapeHtml(order.mobile_money_number)}</div>`
       : "";
 
-    const emailHtml = `
-      <div style="background:#F5F0E8;padding:24px 12px;">
-        <div style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #e8e2d9;padding:28px;">
-          <div style="font-family:Inter,system-ui,sans-serif;font-size:10px;letter-spacing:0.2em;color:#C4A882;text-transform:uppercase;">Order Confirmed</div>
-          <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:38px;font-style:italic;font-weight:300;color:#1A1A1A;margin:10px 0 12px 0;">Thank you, ${firstName}.</h1>
-          <p style="font-family:Inter,system-ui,sans-serif;font-size:14px;color:#888;line-height:1.8;margin:0 0 20px 0;">
-            Your order <strong>${safeOrderNumber}</strong> has been placed and is being processed.
-          </p>
+    const contentHtml = `
+      <div style="font-family:${snapshot.typography.body};font-size:10px;letter-spacing:0.2em;color:${snapshot.colors.accent};text-transform:uppercase;">Order Confirmed</div>
+      <h1 style="font-family:${snapshot.typography.heading};font-size:38px;font-weight:400;color:${snapshot.colors.textPrimary};margin:10px 0 12px 0;">Thank you, ${escapeHtml(firstNameRaw)}.</h1>
+      <p style="font-family:${snapshot.typography.body};font-size:14px;color:${snapshot.colors.textMuted};line-height:1.8;margin:0 0 20px 0;">
+        Your order <strong>${escapeHtml(order.order_number)}</strong> has been placed and is being processed.
+      </p>
 
-          <div style="border-top:1px solid #e8e2d9;padding-top:16px;">
-            <div style="font-family:Inter,system-ui,sans-serif;font-size:10px;letter-spacing:0.2em;color:#C4A882;text-transform:uppercase;margin-bottom:8px;">Items</div>
-            <table style="width:100%;border-collapse:collapse;">${itemRows}</table>
-          </div>
+      <div style="border-top:1px solid ${snapshot.colors.border};padding-top:16px;">
+        <div style="font-family:${snapshot.typography.body};font-size:10px;letter-spacing:0.2em;color:${snapshot.colors.accent};text-transform:uppercase;margin-bottom:8px;">Items</div>
+        <table style="width:100%;border-collapse:collapse;">${itemRows}</table>
+      </div>
 
-          <div style="border-top:1px solid #e8e2d9;margin-top:14px;padding-top:14px;">
-            <div style="display:flex;justify-content:space-between;font-family:Inter,system-ui,sans-serif;font-size:12px;color:#888;margin-bottom:6px;"><span>Subtotal</span><span>${formatPrice(order.subtotal)}</span></div>
-            <div style="display:flex;justify-content:space-between;font-family:Inter,system-ui,sans-serif;font-size:12px;color:#888;margin-bottom:6px;"><span>Shipping</span><span>${formatPrice(order.shipping_fee)}</span></div>
-            ${
-              discountAmount > 0
-                ? `<div style="display:flex;justify-content:space-between;font-family:Inter,system-ui,sans-serif;font-size:12px;color:#C4A882;margin-bottom:6px;"><span>Discount</span><span>- ${formatPrice(discountAmount)}</span></div>`
-                : ""
-            }
-            <div style="display:flex;justify-content:space-between;font-family:Inter,system-ui,sans-serif;font-size:14px;color:#1A1A1A;font-weight:600;"><span>Total</span><span>${formatPrice(order.total)}</span></div>
-          </div>
+      <div style="border-top:1px solid ${snapshot.colors.border};margin-top:14px;padding-top:14px;">
+        <div style="display:flex;justify-content:space-between;font-family:${snapshot.typography.body};font-size:12px;color:${snapshot.colors.textMuted};margin-bottom:6px;"><span>Subtotal</span><span>${formatAmount(order.subtotal)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-family:${snapshot.typography.body};font-size:12px;color:${snapshot.colors.textMuted};margin-bottom:6px;"><span>Shipping</span><span>${formatAmount(order.shipping_fee)}</span></div>
+        ${
+          discountAmount > 0
+            ? `<div style="display:flex;justify-content:space-between;font-family:${snapshot.typography.body};font-size:12px;color:${snapshot.colors.accent};margin-bottom:6px;"><span>Discount</span><span>- ${formatAmount(
+                discountAmount,
+              )}</span></div>`
+            : ""
+        }
+        <div style="display:flex;justify-content:space-between;font-family:${snapshot.typography.body};font-size:14px;color:${snapshot.colors.textPrimary};font-weight:600;"><span>Total</span><span>${formatAmount(order.total)}</span></div>
+      </div>
 
-          <div style="border-top:1px solid #e8e2d9;margin-top:16px;padding-top:16px;display:grid;gap:16px;">
-            <div>
-              <div style="font-family:Inter,system-ui,sans-serif;font-size:10px;letter-spacing:0.2em;color:#C4A882;text-transform:uppercase;margin-bottom:6px;">Delivery Address</div>
-              <div style="font-family:Inter,system-ui,sans-serif;font-size:13px;color:#888;line-height:1.7;">${addressHtml}</div>
-              <div style="font-family:Inter,system-ui,sans-serif;font-size:11px;color:#aaa;margin-top:6px;">${minDays}–${maxDays} business days</div>
-            </div>
-            <div>
-              <div style="font-family:Inter,system-ui,sans-serif;font-size:10px;letter-spacing:0.2em;color:#C4A882;text-transform:uppercase;margin-bottom:6px;">Payment</div>
-              <div style="font-family:Inter,system-ui,sans-serif;font-size:13px;color:#888;">${safePaymentMethod}</div>
-              ${mobileMoneyLine}
-            </div>
-          </div>
-
-          <div style="margin-top:22px;">
-            <a href="${escapeHtml(trackingUrl)}" style="display:inline-block;background:#1A1A1A;color:#F5F0E8;text-decoration:none;font-family:Inter,system-ui,sans-serif;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;padding:12px 16px;">
-              View Order Status
-            </a>
-          </div>
+      <div style="border-top:1px solid ${snapshot.colors.border};margin-top:16px;padding-top:16px;display:grid;gap:16px;">
+        <div>
+          <div style="font-family:${snapshot.typography.body};font-size:10px;letter-spacing:0.2em;color:${snapshot.colors.accent};text-transform:uppercase;margin-bottom:6px;">Delivery Address</div>
+          <div style="font-family:${snapshot.typography.body};font-size:13px;color:${snapshot.colors.textMuted};line-height:1.7;">${addressHtml}</div>
+          <div style="font-family:${snapshot.typography.body};font-size:11px;color:${snapshot.colors.textMuted};margin-top:6px;">${minDays}-${maxDays} business days</div>
         </div>
+        <div>
+          <div style="font-family:${snapshot.typography.body};font-size:10px;letter-spacing:0.2em;color:${snapshot.colors.accent};text-transform:uppercase;margin-bottom:6px;">Payment</div>
+          <div style="font-family:${snapshot.typography.body};font-size:13px;color:${snapshot.colors.textMuted};">${escapeHtml(
+            titleCase(order.payment_method ?? "not specified"),
+          )}</div>
+          ${mobileMoneyLine}
+        </div>
+      </div>
+
+      <div style="margin-top:22px;">
+        <a href="${escapeHtml(trackingUrl)}" style="display:inline-block;background:${snapshot.colors.primary};color:${snapshot.colors.primaryForeground};text-decoration:none;font-family:${snapshot.typography.body};font-size:11px;letter-spacing:0.12em;text-transform:uppercase;padding:12px 16px;">
+          View Order Status
+        </a>
       </div>
     `;
 
+    const emailHtml = renderEmailShell({
+      snapshot,
+      contentHtml,
+      footerNote: `${snapshot.identity.storeName} order confirmation`,
+    });
+
     const plainTextItems = orderItems
       .map((item) => {
-        const variantLabel = typeof item.variant_label === "string" && item.variant_label.trim() ? item.variant_label.trim() : null;
+        const variantLabel =
+          typeof item.variant_label === "string" && item.variant_label.trim() ? item.variant_label.trim() : null;
         const itemName = variantLabel ? `${item.product_name} (${variantLabel})` : item.product_name;
-        return `- ${itemName} x ${item.quantity}: ${formatPrice(item.subtotal)}`;
+        return `- ${itemName} x ${item.quantity}: ${formatAmount(item.subtotal)}`;
       })
       .join("\n");
 
     const plainText = [
       `Order Confirmed: ${order.order_number}`,
       "",
-      `Hi ${firstNameRaw}, your order has been placed.`,
+      `Hi ${firstNameRaw}, your order has been placed with ${snapshot.identity.storeName}.`,
       "",
       "Items:",
       plainTextItems,
       "",
-      `Subtotal: ${formatPrice(order.subtotal)}`,
-      `Shipping: ${formatPrice(order.shipping_fee)}`,
-      discountAmount > 0 ? `Discount: - ${formatPrice(discountAmount)}` : null,
-      `Total: ${formatPrice(order.total)}`,
+      `Subtotal: ${formatAmount(order.subtotal)}`,
+      `Shipping: ${formatAmount(order.shipping_fee)}`,
+      discountAmount > 0 ? `Discount: - ${formatAmount(discountAmount)}` : null,
+      `Total: ${formatAmount(order.total)}`,
       "",
       "Delivery Address:",
       ...addressLines,
@@ -280,6 +296,11 @@ Deno.serve(async (request: Request) => {
       order.mobile_money_number ?? "",
       "",
       `Track your order: ${trackingUrl}`,
+      "",
+      `Instagram: ${snapshot.identity.instagramUrl || "-"}`,
+      `TikTok: ${snapshot.identity.tiktokUrl || "-"}`,
+      `Facebook: ${snapshot.identity.facebookUrl || "-"}`,
+      `Unsubscribe: ${snapshot.identity.unsubscribeUrl}`,
     ]
       .filter(Boolean)
       .join("\n");
@@ -291,11 +312,18 @@ Deno.serve(async (request: Request) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: Deno.env.get("ORDER_CONFIRMATION_FROM_EMAIL") || "Luxuriant <orders@luxuriantgh.store>",
+        from: formatFromEmail(
+          snapshot.identity.storeName,
+          Deno.env.get("ORDER_CONFIRMATION_FROM_EMAIL") || "orders@luxuriantgh.store",
+        ),
         to: [customerEmail],
+        reply_to: snapshot.identity.supportEmail,
         subject: `Order ${order.order_number} confirmed`,
         html: emailHtml,
         text: plainText,
+        headers: {
+          "List-Unsubscribe": `<${snapshot.identity.unsubscribeUrl}>`,
+        },
       }),
     });
 

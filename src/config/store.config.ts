@@ -5,7 +5,6 @@ import { integrationsConfig } from "./integrations.config";
 import type { StoreConfig } from "./store.types";
 
 export type {
-  BorderRadiusPreset,
   BrandingConfig,
   CatalogConfig,
   CategoryConfig,
@@ -25,14 +24,13 @@ export const storeConfig: StoreConfig = {
   storeTagline: brandingConfig.storeTagline,
   logoUrl: brandingConfig.logoUrl,
   faviconUrl: brandingConfig.faviconUrl,
-  theme: brandingConfig.theme,
+  defaultThemePreset: brandingConfig.defaultThemePreset,
   contact: brandingConfig.contact,
   socials: brandingConfig.socials,
   currency: brandingConfig.currency,
   features: commerceConfig.features,
   categories: catalogConfig.categories,
   categoryPage: catalogConfig.categoryPage,
-  pages: brandingConfig.pages,
   payments: commerceConfig.payments,
   styleSyncs: integrationsConfig.styleSyncs,
 };

@@ -1,4 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
+import {
+  escapeHtml,
+  formatFromEmail,
+  loadEmailBranding,
+  normalizeSiteUrl,
+  renderEmailShell,
+  safeString,
+} from "../_shared/emailBrand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,8 +15,7 @@ const corsHeaders = {
 
 const supportedStatuses = ["confirmed", "processing", "shipped", "delivered", "cancelled"] as const;
 type SupportedStatus = (typeof supportedStatuses)[number];
-const SITE_URL = Deno.env.get("SITE_URL") ?? "https://luxuriantgh.store";
-const fromEmail = "Luxuriant <orders@luxuriantgh.store>";
+const SITE_URL = Deno.env.get("SITE_URL") ?? "https://example.com";
 
 interface OrderItemRow {
   product_name: string;
@@ -38,15 +45,6 @@ interface OrderRow {
   }> | null;
 }
 
-interface SiteSettings {
-  supportEmail: string;
-  siteUrl: string;
-  instagramUrl: string;
-  tiktokUrl: string;
-  facebookUrl: string;
-  unsubscribeUrl: string;
-}
-
 interface EmailTemplate {
   subject: string;
   ctaLabel: string;
@@ -71,23 +69,12 @@ const mapMaybeEmbeddedRecord = (value: unknown): Record<string, unknown> | null 
   return asRecord(value);
 };
 
-const safeString = (value: unknown): string | null =>
-  typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-
 const safeNumber = (value: unknown, fallback = 0): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
 const getVariantLabel = (item: Pick<OrderItemRow, "variant_label">): string | null => safeString(item.variant_label);
-
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 
 const formatCurrency = (value: number, currency: string | null) => {
   const normalizedCurrency = safeString(currency) || "GHS";
@@ -111,19 +98,6 @@ const jsonResponse = (status: number, payload: { success: boolean; message: stri
       "Content-Type": "application/json",
     },
   });
-
-const normalizeSiteUrl = (value: string) => value.replace(/\/+$/, "");
-
-const pickFirstString = (record: Record<string, unknown> | null, keys: string[]) => {
-  if (!record) return null;
-  for (const key of keys) {
-    const candidate = safeString(record[key]);
-    if (candidate) {
-      return candidate;
-    }
-  }
-  return null;
-};
 
 const getAddressLines = (snapshot: Record<string, unknown> | null): string[] => {
   if (!snapshot) {
@@ -192,73 +166,41 @@ const resolveDeliveryWindow = async (
   return { minDays: defaultMin, maxDays: defaultMax };
 };
 
-const loadSiteSettings = async (
-  adminClient: ReturnType<typeof createClient>,
-): Promise<SiteSettings> => {
-  const fallbackSiteUrl = normalizeSiteUrl(SITE_URL);
-
-  const defaults: SiteSettings = {
-    supportEmail: safeString(Deno.env.get("SUPPORT_EMAIL")) || "support@yourdomain.com",
-    siteUrl: fallbackSiteUrl,
-    instagramUrl: safeString(Deno.env.get("INSTAGRAM_URL")) || "https://instagram.com/luxuriant",
-    tiktokUrl: safeString(Deno.env.get("TIKTOK_URL")) || "https://tiktok.com/@luxuriant",
-    facebookUrl: safeString(Deno.env.get("FACEBOOK_URL")) || "https://facebook.com/luxuriant",
-    unsubscribeUrl: safeString(Deno.env.get("UNSUBSCRIBE_URL")) || `${fallbackSiteUrl}/unsubscribe`,
-  };
-
-  const { data, error } = await adminClient.from("site_settings").select("*").limit(1).maybeSingle();
-
-  if (error) {
-    if (error.code !== "PGRST205" && error.code !== "42P01") {
-      console.warn("Unable to load site settings, using defaults", error);
-    }
-    return defaults;
-  }
-
-  const settingsRecord = asRecord(data);
-  const siteUrl = normalizeSiteUrl(
-    pickFirstString(settingsRecord, ["site_url", "website_url", "public_site_url", "storefront_url"]) ||
-      defaults.siteUrl,
-  );
-
-  return {
-    supportEmail:
-      pickFirstString(settingsRecord, ["support_email", "customer_support_email", "contact_email", "email"]) ||
-      defaults.supportEmail,
-    siteUrl,
-    instagramUrl: pickFirstString(settingsRecord, ["instagram_url", "instagram", "instagram_link"]) || defaults.instagramUrl,
-    tiktokUrl: pickFirstString(settingsRecord, ["tiktok_url", "tiktok", "tiktok_link"]) || defaults.tiktokUrl,
-    facebookUrl: pickFirstString(settingsRecord, ["facebook_url", "facebook", "facebook_link"]) || defaults.facebookUrl,
-    unsubscribeUrl:
-      pickFirstString(settingsRecord, ["unsubscribe_url", "email_unsubscribe_url"]) || `${siteUrl}/unsubscribe`,
-  };
-};
-
-const buildOrderRowsHtml = (items: OrderItemRow[], currency: string | null) =>
+const buildOrderRowsHtml = (
+  items: OrderItemRow[],
+  currency: string | null,
+  styles: {
+    border: string;
+    textPrimary: string;
+    textMuted: string;
+    primary: string;
+    primaryForeground: string;
+    bodyFont: string;
+  },
+) =>
   items
-    .map((item, index) => {
-      const rowColor = index % 2 === 0 ? "#F5F0E8" : "#EDE8DF";
+    .map((item) => {
       const imageHtml = item.product_image_url
-        ? `<img src="${escapeHtml(item.product_image_url)}" alt="${escapeHtml(item.product_name)}" width="60" height="80" style="display:block;width:60px;height:80px;object-fit:cover;" />`
-        : `<div style="width:60px;height:80px;background:#DED8CF;"></div>`;
+        ? `<img src="${escapeHtml(item.product_image_url)}" alt="${escapeHtml(item.product_name)}" width="60" height="80" style="display:block;width:60px;height:80px;object-fit:cover;border:1px solid ${styles.border};" />`
+        : `<div style="width:60px;height:80px;border:1px solid ${styles.border};"></div>`;
       const variantLabel = getVariantLabel(item);
       const variantHtml = variantLabel
-        ? `<div style="font-family:Inter,system-ui,sans-serif;font-size:11px;color:#888;margin-top:2px;">${escapeHtml(variantLabel)}</div>`
+        ? `<div style="font-family:${styles.bodyFont};font-size:11px;color:${styles.textMuted};margin-top:2px;">${escapeHtml(variantLabel)}</div>`
         : "";
 
       return `
-        <tr style="background:${rowColor};">
-          <td style="padding:10px 12px;vertical-align:middle;">
+        <tr>
+          <td style="padding:10px 12px;vertical-align:middle;border-top:1px solid ${styles.border};">
             ${imageHtml}
           </td>
-          <td style="padding:10px 12px;vertical-align:middle;font-size:14px;color:#1A1A1A;">
+          <td style="padding:10px 12px;vertical-align:middle;font-family:${styles.bodyFont};font-size:14px;color:${styles.textPrimary};border-top:1px solid ${styles.border};">
             ${escapeHtml(item.product_name)}
             ${variantHtml}
           </td>
-          <td style="padding:10px 12px;vertical-align:middle;font-size:13px;color:#1A1A1A;text-align:center;">
+          <td style="padding:10px 12px;vertical-align:middle;font-family:${styles.bodyFont};font-size:13px;color:${styles.textPrimary};text-align:center;border-top:1px solid ${styles.border};">
             ${Math.max(1, Math.round(safeNumber(item.quantity, 1)))}
           </td>
-          <td style="padding:10px 12px;vertical-align:middle;font-size:13px;color:#1A1A1A;text-align:right;">
+          <td style="padding:10px 12px;vertical-align:middle;font-family:${styles.bodyFont};font-size:13px;color:${styles.textPrimary};text-align:right;border-top:1px solid ${styles.border};">
             ${escapeHtml(formatCurrency(safeNumber(item.subtotal), currency))}
           </td>
         </tr>
@@ -272,20 +214,20 @@ const buildTotalsHtml = (
   discountAmount: number,
   total: number,
   currency: string | null,
+  styles: {
+    textPrimary: string;
+    bodyFont: string;
+  },
 ) => `
-  <div style="margin-top:20px;text-align:right;">
-    <div style="font-size:14px;color:#1A1A1A;line-height:1.7;">Subtotal: ${escapeHtml(formatCurrency(subtotal, currency))}</div>
-    <div style="font-size:14px;color:#1A1A1A;line-height:1.7;">Shipping: ${escapeHtml(formatCurrency(shippingFee, currency))}</div>
+  <div style="margin-top:20px;text-align:right;font-family:${styles.bodyFont};color:${styles.textPrimary};">
+    <div style="font-size:14px;line-height:1.7;">Subtotal: ${escapeHtml(formatCurrency(subtotal, currency))}</div>
+    <div style="font-size:14px;line-height:1.7;">Shipping: ${escapeHtml(formatCurrency(shippingFee, currency))}</div>
     ${
       discountAmount > 0
-        ? `<div style="font-size:14px;color:#1A1A1A;line-height:1.7;">Discount: -${escapeHtml(
-            formatCurrency(discountAmount, currency),
-          )}</div>`
+        ? `<div style="font-size:14px;line-height:1.7;">Discount: -${escapeHtml(formatCurrency(discountAmount, currency))}</div>`
         : ""
     }
-    <div style="font-size:16px;color:#1A1A1A;line-height:1.7;font-weight:bold;">Total: ${escapeHtml(
-      formatCurrency(total, currency),
-    )}</div>
+    <div style="font-size:16px;line-height:1.7;font-weight:600;">Total: ${escapeHtml(formatCurrency(total, currency))}</div>
   </div>
 `;
 
@@ -296,6 +238,7 @@ const buildEmailTemplate = (
   cancelReason: string | null,
   deliveryWindow: { minDays: number; maxDays: number } | null,
   siteUrl: string,
+  storeName: string,
 ): EmailTemplate => {
   const safeOrderNumber = order.order_number;
   const orderStatusUrl = `${siteUrl}/orders/${encodeURIComponent(order.order_number)}`;
@@ -311,7 +254,7 @@ const buildEmailTemplate = (
       greetingLine: `Hi ${firstName},`,
       bodyLines: [
         "Your order has been confirmed and is being prepared.",
-        "We'll update you when your order ships. Questions? Reply to this email.",
+        `We'll update you when it ships. If you need anything, reply to this email or contact ${storeName}.`,
       ],
     };
   }
@@ -353,7 +296,10 @@ const buildEmailTemplate = (
       includeOrderSummary: true,
       includeDeliveryAddress: false,
       greetingLine: `Hi ${firstName},`,
-      bodyLines: ["Your order has been delivered. We hope you love everything.", "Thank you for shopping with Luxuriant."],
+      bodyLines: [
+        "Your order has been delivered. We hope you love everything.",
+        `Thank you for shopping with ${storeName}.`,
+      ],
     };
   }
 
@@ -377,9 +323,18 @@ const buildEmailHtml = (
   items: OrderItemRow[],
   addressLines: string[],
   template: EmailTemplate,
-  siteSettings: SiteSettings,
+  snapshot: Awaited<ReturnType<typeof loadEmailBranding>>,
 ) => {
-  const rowsHtml = buildOrderRowsHtml(items, order.currency);
+  const styles = {
+    border: snapshot.colors.border,
+    textPrimary: snapshot.colors.textPrimary,
+    textMuted: snapshot.colors.textMuted,
+    primary: snapshot.colors.primary,
+    primaryForeground: snapshot.colors.primaryForeground,
+    bodyFont: snapshot.typography.body,
+  };
+
+  const rowsHtml = buildOrderRowsHtml(items, order.currency, styles);
   const subtotal = safeNumber(order.subtotal);
   const shippingFee = safeNumber(order.shipping_fee);
   const discountAmount = Math.max(0, safeNumber(order.discount_amount));
@@ -387,18 +342,18 @@ const buildEmailHtml = (
 
   const summaryTable = template.includeOrderSummary
     ? `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:26px;border:1px solid #E3DDD4;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:26px;border:1px solid ${snapshot.colors.border};">
         <thead>
-          <tr style="background:#1A1A1A;color:#F5F0E8;">
-            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Item</th>
-            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Name</th>
-            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Qty</th>
-            <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Price</th>
+          <tr style="background:${snapshot.colors.primary};color:${snapshot.colors.primaryForeground};">
+            <th style="padding:10px 12px;text-align:left;font-family:${snapshot.typography.body};font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Item</th>
+            <th style="padding:10px 12px;text-align:left;font-family:${snapshot.typography.body};font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Name</th>
+            <th style="padding:10px 12px;text-align:center;font-family:${snapshot.typography.body};font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Qty</th>
+            <th style="padding:10px 12px;text-align:right;font-family:${snapshot.typography.body};font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Price</th>
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
       </table>
-      ${buildTotalsHtml(subtotal, shippingFee, discountAmount, total, order.currency)}
+      ${buildTotalsHtml(subtotal, shippingFee, discountAmount, total, order.currency, styles)}
     `
     : "";
 
@@ -406,8 +361,8 @@ const buildEmailHtml = (
     template.includeDeliveryAddress && addressLines.length > 0
       ? `
       <div style="margin-top:24px;">
-        <p style="margin:0 0 8px 0;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1A1A1A;">Delivery Address</p>
-        <div style="font-size:14px;line-height:1.8;color:#1A1A1A;">
+        <p style="margin:0 0 8px 0;font-family:${snapshot.typography.body};font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:${snapshot.colors.textPrimary};">Delivery Address</p>
+        <div style="font-family:${snapshot.typography.body};font-size:14px;line-height:1.8;color:${snapshot.colors.textPrimary};">
           ${addressLines.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}
         </div>
       </div>
@@ -415,45 +370,34 @@ const buildEmailHtml = (
       : "";
 
   const bodyLines = template.bodyLines
-    .map((line) => `<p style="margin:0 0 14px 0;font-size:16px;line-height:1.7;color:#1A1A1A;">${escapeHtml(line)}</p>`)
+    .map(
+      (line) =>
+        `<p style="margin:0 0 14px 0;font-family:${snapshot.typography.body};font-size:16px;line-height:1.7;color:${snapshot.colors.textPrimary};">${escapeHtml(
+          line,
+        )}</p>`,
+    )
     .join("");
 
-  return `
-    <div style="background:#F5F0E8;padding:28px 14px;font-family:Georgia,'Times New Roman',Times,serif;">
-      <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border:1px solid #E3DDD4;">
-        <div style="background:#1A1A1A;padding:32px;text-align:center;">
-          <p style="margin:0;font-size:20px;color:#F5F0E8;letter-spacing:0.2em;">LUXURIANT</p>
-        </div>
+  const contentHtml = `
+    <p style="margin:0 0 14px 0;font-family:${snapshot.typography.body};font-size:18px;line-height:1.6;color:${snapshot.colors.textPrimary};">
+      ${escapeHtml(template.greetingLine)}
+    </p>
+    ${bodyLines}
+    ${summaryTable}
+    ${addressBlock}
 
-        <div style="padding:40px;">
-          <p style="margin:0 0 14px 0;font-size:18px;line-height:1.6;color:#1A1A1A;">${escapeHtml(template.greetingLine)}</p>
-          ${bodyLines}
-          ${summaryTable}
-          ${addressBlock}
-
-          <div style="margin-top:28px;">
-            <a href="${escapeHtml(template.ctaUrl)}" style="display:inline-block;background:#1A1A1A;color:#F5F0E8;padding:14px 32px;text-decoration:none;border-radius:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;">
-              ${escapeHtml(template.ctaLabel)}
-            </a>
-          </div>
-        </div>
-
-        <div style="padding:22px 40px 34px;border-top:1px solid #E3DDD4;text-align:center;">
-          <p style="margin:0 0 10px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:10px;color:#AAAAAA;">Luxuriant - Luxury Fashion & Hair Care</p>
-          <p style="margin:0 0 8px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:10px;color:#AAAAAA;">
-            <a href="${escapeHtml(siteSettings.instagramUrl)}" style="color:#AAAAAA;text-decoration:none;">Instagram</a>
-            &nbsp;|&nbsp;
-            <a href="${escapeHtml(siteSettings.tiktokUrl)}" style="color:#AAAAAA;text-decoration:none;">TikTok</a>
-            &nbsp;|&nbsp;
-            <a href="${escapeHtml(siteSettings.facebookUrl)}" style="color:#AAAAAA;text-decoration:none;">Facebook</a>
-          </p>
-          <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:10px;color:#AAAAAA;">
-            <a href="${escapeHtml(siteSettings.unsubscribeUrl)}" style="color:#AAAAAA;text-decoration:underline;">Unsubscribe</a>
-          </p>
-        </div>
-      </div>
+    <div style="margin-top:28px;">
+      <a href="${escapeHtml(template.ctaUrl)}" style="display:inline-block;background:${snapshot.colors.primary};color:${snapshot.colors.primaryForeground};padding:14px 32px;text-decoration:none;font-family:${snapshot.typography.body};font-size:11px;letter-spacing:0.15em;text-transform:uppercase;">
+        ${escapeHtml(template.ctaLabel)}
+      </a>
     </div>
   `;
+
+  return renderEmailShell({
+    snapshot,
+    contentHtml,
+    footerNote: `${snapshot.identity.storeName} order updates`,
+  });
 };
 
 const buildEmailText = (
@@ -461,23 +405,21 @@ const buildEmailText = (
   items: OrderItemRow[],
   addressLines: string[],
   template: EmailTemplate,
-  siteSettings: SiteSettings,
+  snapshot: Awaited<ReturnType<typeof loadEmailBranding>>,
 ) => {
   const lines: string[] = [template.greetingLine, "", ...template.bodyLines, ""];
 
   if (template.includeOrderSummary) {
     lines.push("Order summary:");
     lines.push(
-      ...items.map(
-        (item) => {
-          const variantLabel = getVariantLabel(item);
-          const itemName = variantLabel ? `${item.product_name} (${variantLabel})` : item.product_name;
-          return `- ${itemName} x ${Math.max(1, Math.round(safeNumber(item.quantity, 1)))}: ${formatCurrency(
-            safeNumber(item.subtotal),
-            order.currency,
-          )}`;
-        },
-      ),
+      ...items.map((item) => {
+        const variantLabel = getVariantLabel(item);
+        const itemName = variantLabel ? `${item.product_name} (${variantLabel})` : item.product_name;
+        return `- ${itemName} x ${Math.max(1, Math.round(safeNumber(item.quantity, 1)))}: ${formatCurrency(
+          safeNumber(item.subtotal),
+          order.currency,
+        )}`;
+      }),
     );
     lines.push("");
     lines.push(`Subtotal: ${formatCurrency(safeNumber(order.subtotal), order.currency)}`);
@@ -497,10 +439,10 @@ const buildEmailText = (
 
   lines.push(`${template.ctaLabel}: ${template.ctaUrl}`);
   lines.push("");
-  lines.push(`Instagram: ${siteSettings.instagramUrl}`);
-  lines.push(`TikTok: ${siteSettings.tiktokUrl}`);
-  lines.push(`Facebook: ${siteSettings.facebookUrl}`);
-  lines.push(`Unsubscribe: ${siteSettings.unsubscribeUrl}`);
+  lines.push(`Instagram: ${snapshot.identity.instagramUrl || "-"}`);
+  lines.push(`TikTok: ${snapshot.identity.tiktokUrl || "-"}`);
+  lines.push(`Facebook: ${snapshot.identity.facebookUrl || "-"}`);
+  lines.push(`Unsubscribe: ${snapshot.identity.unsubscribeUrl}`);
 
   return lines.join("\n");
 };
@@ -598,13 +540,22 @@ Deno.serve(async (request: Request) => {
       return jsonResponse(500, { success: false, message: "RESEND_API_KEY is not configured" });
     }
 
-    const siteSettings = await loadSiteSettings(adminClient);
+    const snapshot = await loadEmailBranding(adminClient, { fallbackSiteUrl: SITE_URL });
     const deliveryWindow = newStatus === "shipped" ? await resolveDeliveryWindow(adminClient, shippingSnapshot) : null;
     const cancelReason = cancelReasonFromBody || safeString(order.cancel_reason);
+    const normalizedSiteUrl = normalizeSiteUrl(snapshot.identity.siteUrl);
 
-    const template = buildEmailTemplate(newStatus, order, firstName, cancelReason, deliveryWindow, siteSettings.siteUrl);
-    const html = buildEmailHtml(order, orderItems, addressLines, template, siteSettings);
-    const text = buildEmailText(order, orderItems, addressLines, template, siteSettings);
+    const template = buildEmailTemplate(
+      newStatus,
+      order,
+      firstName,
+      cancelReason,
+      deliveryWindow,
+      normalizedSiteUrl,
+      snapshot.identity.storeName,
+    );
+    const html = buildEmailHtml(order, orderItems, addressLines, template, snapshot);
+    const text = buildEmailText(order, orderItems, addressLines, template, snapshot);
 
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -613,14 +564,17 @@ Deno.serve(async (request: Request) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: fromEmail,
+        from: formatFromEmail(
+          snapshot.identity.storeName,
+          Deno.env.get("ORDER_FROM_EMAIL_ADDRESS") ?? "orders@luxuriantgh.store",
+        ),
         to: [customerEmail],
-        reply_to: siteSettings.supportEmail,
+        reply_to: snapshot.identity.supportEmail,
         subject: template.subject,
         html,
         text,
         headers: {
-          "List-Unsubscribe": `<${siteSettings.unsubscribeUrl}>`,
+          "List-Unsubscribe": `<${snapshot.identity.unsubscribeUrl}>`,
         },
       }),
     });

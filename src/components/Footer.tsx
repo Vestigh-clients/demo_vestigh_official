@@ -1,8 +1,9 @@
 import { Instagram } from "lucide-react";
 import { Link } from "react-router-dom";
 import StoreLogo from "@/components/StoreLogo";
-import { storeConfig } from "@/config/store.config";
-import { getWhatsAppContactLink } from "@/lib/contact";
+import { contentConfig } from "@/config/content.config";
+import { useStorefrontConfig } from "@/contexts/StorefrontConfigContext";
+import { buildWhatsAppContactLink } from "@/lib/contact";
 
 interface FooterSocialLink {
   label: string;
@@ -10,11 +11,13 @@ interface FooterSocialLink {
 }
 
 const Footer = () => {
+  const { storefrontConfig } = useStorefrontConfig();
+
   const socialLinks: FooterSocialLink[] = [
-    { label: "Instagram", href: storeConfig.socials.instagram },
-    { label: "Facebook", href: storeConfig.socials.facebook },
-    { label: "Twitter", href: storeConfig.socials.twitter },
-    { label: "TikTok", href: storeConfig.socials.tiktok },
+    { label: "Instagram", href: storefrontConfig.socials.instagram },
+    { label: "Facebook", href: storefrontConfig.socials.facebook },
+    { label: "Twitter", href: storefrontConfig.socials.twitter },
+    { label: "TikTok", href: storefrontConfig.socials.tiktok },
   ].filter((entry) => Boolean(entry.href.trim()));
 
   return (
@@ -25,70 +28,51 @@ const Footer = () => {
             <div className="mb-2">
               <StoreLogo className="h-9 w-auto" textClassName="text-2xl font-bold tracking-wider text-primary-foreground" />
             </div>
-            <p className="mb-3 font-body text-xs italic text-primary-foreground/60">{storeConfig.storeTagline}</p>
-            <p className="font-body text-sm leading-relaxed text-primary-foreground/70">
-              Luxury fashion essentials, curated for your store.
-            </p>
+            <p className="mb-3 font-body text-xs italic text-primary-foreground/60">{storefrontConfig.storeTagline}</p>
+            <p className="font-body text-sm leading-relaxed text-primary-foreground/70">{contentConfig.footer.description}</p>
           </div>
 
           <div>
             <h4 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider">Shop</h4>
             <div className="flex flex-col gap-2">
-              <Link to="/category/hair-care" className="font-body text-sm text-primary-foreground/70 transition-colors hover:text-accent">
-                Hair Care
-              </Link>
-              <Link
-                to="/category/mens-fashion"
-                className="font-body text-sm text-primary-foreground/70 transition-colors hover:text-accent"
-              >
-                Men's Fashion
-              </Link>
-              <Link
-                to="/category/womens-fashion"
-                className="font-body text-sm text-primary-foreground/70 transition-colors hover:text-accent"
-              >
-                Women's Fashion
-              </Link>
-              <Link to="/category/bags" className="font-body text-sm text-primary-foreground/70 transition-colors hover:text-accent">
-                Bags
-              </Link>
-              <Link to="/category/shoes" className="font-body text-sm text-primary-foreground/70 transition-colors hover:text-accent">
-                Shoes
-              </Link>
+              {contentConfig.footer.shopLinks.map((link) => (
+                <Link key={link.href} to={link.href} className="font-body text-sm text-primary-foreground/70 transition-colors hover:text-accent">
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </div>
 
           <div>
             <h4 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider">Company</h4>
             <div className="flex flex-col gap-2">
-              <Link to="/about" className="font-body text-sm text-primary-foreground/70 transition-colors hover:text-accent">
-                About
-              </Link>
-              <Link to="/contact" className="font-body text-sm text-primary-foreground/70 transition-colors hover:text-accent">
-                Contact
-              </Link>
+              {contentConfig.footer.companyLinks.map((link) => (
+                <Link key={link.href} to={link.href} className="font-body text-sm text-primary-foreground/70 transition-colors hover:text-accent">
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </div>
 
           <div>
             <h4 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider">Connect</h4>
             <div className="flex flex-col gap-3">
-              {storeConfig.contact.whatsapp ? (
+              {storefrontConfig.contact.whatsapp ? (
                 <a
-                  href={getWhatsAppContactLink()}
+                  href={buildWhatsAppContactLink(storefrontConfig.storeName, storefrontConfig.contact.whatsapp)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-body text-sm text-primary-foreground/70 transition-colors hover:text-accent"
                 >
-                  WhatsApp: {storeConfig.contact.whatsapp}
+                  WhatsApp: {storefrontConfig.contact.whatsapp}
                 </a>
               ) : null}
-              {storeConfig.contact.email ? (
+              {storefrontConfig.contact.email ? (
                 <a
-                  href={`mailto:${storeConfig.contact.email}`}
+                  href={`mailto:${storefrontConfig.contact.email}`}
                   className="font-body text-sm text-primary-foreground/70 transition-colors hover:text-accent"
                 >
-                  Email: {storeConfig.contact.email}
+                  Email: {storefrontConfig.contact.email}
                 </a>
               ) : null}
               {socialLinks.map((social) => (
@@ -109,7 +93,7 @@ const Footer = () => {
 
         <div className="mt-12 border-t border-primary-foreground/20 pt-8 text-center">
           <p className="font-body text-xs text-primary-foreground/50">
-            © {new Date().getFullYear()} {storeConfig.storeName}. All rights reserved.
+            © {new Date().getFullYear()} {storefrontConfig.storeName}. All rights reserved.
           </p>
         </div>
       </div>

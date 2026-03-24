@@ -5,10 +5,11 @@ import { clearTestOrders, fetchSiteSettings, saveSiteSetting, buildFullDataExpor
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateShort } from "@/lib/adminFormatting";
 import { getGhanaianPhoneError } from "@/lib/phoneValidation";
+import { themePresetOptions, themePresets } from "@/themes/registry";
 
 type SectionKey = "general" | "orders" | "notifications";
 
-const generalKeys = ["site_name", "site_tagline", "support_email", "support_phone", "whatsapp_number"] as const;
+const generalKeys = ["site_name", "site_tagline", "support_email", "support_phone", "whatsapp_number", "site_theme_preset"] as const;
 const orderKeys = ["free_shipping_threshold", "order_number_prefix", "default_currency"] as const;
 const notificationKeys = ["new_order_email", "low_stock_email", "weekly_summary_email"] as const;
 
@@ -264,6 +265,9 @@ const AdminSettingsPage = () => {
   const generalMeta = useMemo(() => getSectionMeta([...generalKeys]), [metaMap]);
   const orderMeta = useMemo(() => getSectionMeta([...orderKeys]), [metaMap]);
   const notificationMeta = useMemo(() => getSectionMeta([...notificationKeys]), [metaMap]);
+  const activeThemePresetOption =
+    themePresetOptions.find((option) => option.key === settingsMap.site_theme_preset) ?? themePresetOptions[0] ?? null;
+  const activeThemePreset = activeThemePresetOption ? themePresets[activeThemePresetOption.key] : null;
 
   if (role !== "super_admin") {
     return <Navigate to="/admin" replace />;
@@ -318,6 +322,23 @@ const AdminSettingsPage = () => {
             onBlur={(value) => validateField("whatsapp_number", value)}
             onChange={(value) => setSetting("whatsapp_number", value)}
           />
+          <div>
+            <label className="font-body text-[11px] uppercase tracking-[0.1em] text-[var(--color-muted-soft)]">Theme Preset</label>
+            <select
+              value={activeThemePresetOption?.key || ""}
+              onChange={(event) => setSetting("site_theme_preset", event.target.value)}
+              className="mt-2 w-full border-0 border-b border-[var(--color-border)] bg-transparent pb-2 font-body text-[14px] text-[var(--color-primary)] outline-none focus:border-[var(--color-primary)]"
+            >
+              {themePresetOptions.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {activeThemePreset ? (
+              <p className="mt-1 font-body text-[10px] text-[var(--color-muted-soft)]">{activeThemePreset.description}</p>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4">

@@ -1,104 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import CategoryCard from "@/components/CategoryCard";
-import { storeConfig } from "@/config/store.config";
+import { contentConfig } from "@/config/content.config";
+import { useStorefrontConfig } from "@/contexts/StorefrontConfigContext";
 const AUTOPLAY_INTERVAL_SECONDS = 5;
 type TransitionType = "push";
 const Transition_type: TransitionType = "push";
 const HERO_TRANSITION_DURATION_MS = 700;
 const HERO_TRANSITION_EASING = "cubic-bezier(0.77, 0, 0.175, 1)";
 
-type HeroCtaStyle = "outline" | "solid" | "bronze";
-
-interface HeroSlide {
-  id: number;
-  category: string;
-  image: string;
-  label: string;
-  heading: string;
-  subtext: string;
-  cta: {
-    text: string;
-    href: string;
-    style: HeroCtaStyle;
-  };
-}
-
-const slides: HeroSlide[] = [
-  {
-    id: 1,
-    category: "Hair Care",
-    image: "/images/hero-haircare.jpg",
-    label: "HAIR CARE COLLECTION",
-    heading: "Rituals for your most luxurious self.",
-    subtext: "Premium formulas for healthy, beautiful hair.",
-    cta: {
-      text: "Shop Hair Care",
-      href: "/category/hair-care",
-      style: "outline",
-    },
-  },
-  {
-    id: 2,
-    category: "Men",
-    image: "/images/hero-men.jpg",
-    label: "MEN'S COLLECTION",
-    heading: "Dressed with intention. Built to last.",
-    subtext: "Elevated essentials for the modern wardrobe.",
-    cta: {
-      text: "Shop Men",
-      href: "/category/mens-fashion",
-      style: "solid",
-    },
-  },
-  {
-    id: 3,
-    category: "Women",
-    image: "/images/hero-women.jpg",
-    label: "WOMEN'S COLLECTION",
-    heading: "Worn with intention. Made to last.",
-    subtext: "Timeless pieces for the discerning woman.",
-    cta: {
-      text: "Explore Women",
-      href: "/category/womens-fashion",
-      style: "outline",
-    },
-  },
-  {
-    id: 4,
-    category: "Bags",
-    image: "/images/hero-bags.jpg",
-    label: "BAG COLLECTION",
-    heading: "Carry something worth noticing.",
-    subtext: "Handcrafted leather and refined silhouettes.",
-    cta: {
-      text: "Shop Bags",
-      href: "/category/bags",
-      style: "bronze",
-    },
-  },
-  {
-    id: 5,
-    category: "Shoes",
-    image: "/images/hero-shoes.jpg",
-    label: "FOOTWEAR COLLECTION",
-    heading: "Stand in something worth remembering.",
-    subtext: "Every step, considered.",
-    cta: {
-      text: "Shop Shoes",
-      href: "/category/shoes",
-      style: "solid",
-    },
-  },
-];
+type HeroCtaStyle = "outline" | "primary" | "accent";
 
 const ctaBaseClass =
   "inline-flex cursor-pointer items-center justify-center rounded-[var(--border-radius)] border px-[36px] py-[14px] font-body text-[11px] uppercase tracking-[0.18em] transition-all duration-300 ease-in-out";
 
 const ctaClassByStyle: Record<HeroCtaStyle, string> = {
   outline: "border-[var(--color-accent)] bg-transparent text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-[var(--color-primary)]",
-  solid: "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-secondary)] hover:bg-[var(--color-secondary)] hover:text-[var(--color-primary)]",
-  bronze: "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-primary)] hover:border-[var(--color-accent)] hover:bg-transparent hover:text-[var(--color-accent)]",
+  primary: "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-secondary)] hover:bg-[var(--color-secondary)] hover:text-[var(--color-primary)]",
+  accent: "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-secondary)] hover:border-[var(--color-accent)] hover:bg-transparent hover:text-[var(--color-accent)]",
 };
 
 type SlideDirection = "next" | "prev";
@@ -111,6 +30,7 @@ const ENTERING_TEXT_DELAYS_MS = {
 };
 
 const Index = () => {
+  const { storefrontConfig } = useStorefrontConfig();
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [incomingSlideIndex, setIncomingSlideIndex] = useState<number | null>(null);
   const [navigationDirection, setNavigationDirection] = useState<SlideDirection>("next");
@@ -121,19 +41,20 @@ const Index = () => {
 
   const animationTimeoutRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const slides = contentConfig.home.heroSlides;
 
   const hasMultipleSlides = slides.length > 1;
   const isPushTransition = Transition_type === "push";
   const enabledCategories = useMemo(
     () =>
-      storeConfig.categories
+      storefrontConfig.categories
         .filter((category) => category.enabled)
         .map((category) => ({
           ...category,
           slug: category.slug.trim().toLowerCase(),
         }))
         .filter((category) => category.slug.length > 0),
-    [],
+    [storefrontConfig.categories],
   );
 
   useEffect(() => {
@@ -288,7 +209,7 @@ const Index = () => {
                 className="relative h-full flex-shrink-0"
                 style={{ width: `${slideItemWidthPercent}%` }}
               >
-                <img src={slide.image} alt={`${slide.category} collection`} className="h-full w-full object-cover object-center" />
+                <img src={slide.imageUrl} alt={slide.imageAlt} className="h-full w-full object-cover object-center" />
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(var(--color-primary-rgb),0.65)_0%,rgba(var(--color-primary-rgb),0.05)_100%)]" />
 
                 <div className="absolute bottom-8 left-6 right-6 z-20 text-left md:bottom-[80px] md:left-[80px] md:right-auto">
@@ -378,11 +299,11 @@ const Index = () => {
         <section className="bg-background py-[100px]">
           <div className="container mx-auto px-4">
             <p className="font-body font-light text-[11px] tracking-[0.2em] uppercase text-accent text-center mb-4">
-              Our Collections
+              {contentConfig.home.collectionsEyebrow}
             </p>
-            <h2 className="font-display text-[42px] font-normal italic text-center text-foreground mb-2">Shop by Category</h2>
+            <h2 className="font-display text-[42px] font-normal italic text-center text-foreground mb-2">{contentConfig.home.collectionsTitle}</h2>
             <p className="font-body font-light text-[14px] text-[var(--color-muted)] text-center mb-[60px] max-w-2xl mx-auto">
-              Considered categories for wardrobe staples, elevated accessories, and restorative hair care.
+              {contentConfig.home.collectionsDescription}
             </p>
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5 lg:gap-8">
               {enabledCategories.map((category) => (
@@ -391,6 +312,7 @@ const Index = () => {
                   name={category.name}
                   slug={category.slug}
                   imageUrl={category.imageUrl}
+                  ctaLabel={contentConfig.home.categoryCardCtaLabel}
                 />
               ))}
             </div>

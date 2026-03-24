@@ -1,12 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
+import {
+  escapeHtml,
+  formatFromEmail,
+  loadEmailBranding,
+  normalizeSiteUrl,
+  renderEmailShell,
+  safeString,
+} from "../_shared/emailBrand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SITE_URL = Deno.env.get("SITE_URL") ?? "https://luxuriantgh.store";
-const fromEmail = "Luxuriant Orders <orders@luxuriantgh.store>";
+const SITE_URL = Deno.env.get("SITE_URL") ?? "https://example.com";
 
 interface OrderItemRow {
   product_id: string;
@@ -57,9 +64,6 @@ const mapMaybeEmbeddedRecord = (value: unknown): Record<string, unknown> | null 
   return asRecord(value);
 };
 
-const safeString = (value: unknown): string | null =>
-  typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-
 const safeNumber = (value: unknown, fallback = 0): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -73,19 +77,18 @@ const toTitleCase = (value: string) =>
     .map((token) => (token ? token[0].toUpperCase() + token.slice(1).toLowerCase() : ""))
     .join(" ");
 
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-
-const formatAmountGhs = (value: number): string =>
-  `GH₵${Math.max(0, value).toLocaleString("en-GH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+const formatAmount = (value: number): string => {
+  try {
+    return new Intl.NumberFormat("en-GH", {
+      style: "currency",
+      currency: "GHS",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Math.max(0, value));
+  } catch {
+    return Math.max(0, value).toLocaleString("en-GH");
+  }
+};
 
 const formatDateLong = (value: string): string => {
   const parsed = new Date(value);
@@ -271,29 +274,38 @@ const buildLowStockNotifications = async (
   return notifications;
 };
 
-const buildItemsRowsHtml = (items: OrderItemRow[]): string =>
+const buildItemsRowsHtml = (
+  items: OrderItemRow[],
+  styles: {
+    border: string;
+    textPrimary: string;
+    textMuted: string;
+    primary: string;
+    primaryForeground: string;
+    bodyFont: string;
+  },
+): string =>
   items
-    .map((item, index) => {
-      const rowColor = index % 2 === 0 ? "#F5F0E8" : "#EDE8DF";
+    .map((item) => {
       const variantLabel = getVariantLabel(item);
       const variantHtml = variantLabel
-        ? `<div style="font-family:Inter,system-ui,sans-serif;font-size:11px;color:#888;margin-top:2px;">${escapeHtml(variantLabel)}</div>`
+        ? `<div style="font-family:${styles.bodyFont};font-size:11px;color:${styles.textMuted};margin-top:2px;">${escapeHtml(variantLabel)}</div>`
         : "";
       return `
-        <tr style="background:${rowColor};">
-          <td style="padding:10px 12px;font-size:13px;color:#1A1A1A;">
+        <tr>
+          <td style="padding:10px 12px;font-family:${styles.bodyFont};font-size:13px;color:${styles.textPrimary};border-top:1px solid ${styles.border};">
             ${escapeHtml(item.product_name)}
             ${variantHtml}
           </td>
-          <td style="padding:10px 12px;font-size:13px;color:#1A1A1A;text-align:center;">${Math.max(
+          <td style="padding:10px 12px;font-family:${styles.bodyFont};font-size:13px;color:${styles.textPrimary};text-align:center;border-top:1px solid ${styles.border};">${Math.max(
             1,
             Math.round(safeNumber(item.quantity, 1)),
           )}</td>
-          <td style="padding:10px 12px;font-size:13px;color:#1A1A1A;text-align:right;">${escapeHtml(
-            formatAmountGhs(safeNumber(item.unit_price)),
+          <td style="padding:10px 12px;font-family:${styles.bodyFont};font-size:13px;color:${styles.textPrimary};text-align:right;border-top:1px solid ${styles.border};">${escapeHtml(
+            formatAmount(safeNumber(item.unit_price)),
           )}</td>
-          <td style="padding:10px 12px;font-size:13px;color:#1A1A1A;text-align:right;">${escapeHtml(
-            formatAmountGhs(safeNumber(item.subtotal)),
+          <td style="padding:10px 12px;font-family:${styles.bodyFont};font-size:13px;color:${styles.textPrimary};text-align:right;border-top:1px solid ${styles.border};">${escapeHtml(
+            formatAmount(safeNumber(item.subtotal)),
           )}</td>
         </tr>
       `;
@@ -301,9 +313,6 @@ const buildItemsRowsHtml = (items: OrderItemRow[]): string =>
     .join("");
 
 const buildEmailHtml = (params: {
-  instagramUrl: string;
-  tiktokUrl: string;
-  facebookUrl: string;
   adminOrderUrl: string;
   order: OrderRow;
   customerName: string;
@@ -313,11 +322,10 @@ const buildEmailHtml = (params: {
   deliveryInstructions: string | null;
   paymentMethodLabel: string;
   itemsRowsHtml: string;
+  storeName: string;
+  snapshot: Awaited<ReturnType<typeof loadEmailBranding>>;
 }) => {
   const {
-    instagramUrl,
-    tiktokUrl,
-    facebookUrl,
     adminOrderUrl,
     order,
     customerName,
@@ -327,6 +335,8 @@ const buildEmailHtml = (params: {
     deliveryInstructions,
     paymentMethodLabel,
     itemsRowsHtml,
+    storeName,
+    snapshot,
   } = params;
 
   const subtotal = safeNumber(order.subtotal);
@@ -334,102 +344,89 @@ const buildEmailHtml = (params: {
   const discount = Math.max(0, safeNumber(order.discount_amount));
   const total = safeNumber(order.total);
 
-  return `
-    <div style="background:#F5F0E8;padding:28px 14px;font-family:Georgia,'Times New Roman',Times,serif;">
-      <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border:1px solid #E3DDD4;">
-        <div style="background:#1A1A1A;padding:32px;text-align:center;">
-          <p style="margin:0;font-size:20px;color:#F5F0E8;letter-spacing:0.2em;">LUXURIANT</p>
-        </div>
+  const contentHtml = `
+    <p style="margin:0 0 16px 0;font-family:${snapshot.typography.body};font-size:18px;color:${snapshot.colors.textPrimary};">
+      A new order has been placed on ${escapeHtml(storeName)}.
+    </p>
 
-        <div style="padding:40px;">
-          <p style="margin:0 0 16px 0;font-size:18px;color:#1A1A1A;">A new order has been placed.</p>
+    <div style="border:1px solid ${snapshot.colors.border};background:${snapshot.colors.canvas};padding:16px 18px;">
+      <p style="margin:0 0 8px 0;font-family:${snapshot.typography.body};font-size:13px;color:${snapshot.colors.textPrimary};"><strong>Order #:</strong> ${escapeHtml(
+        order.order_number,
+      )}</p>
+      <p style="margin:0 0 8px 0;font-family:${snapshot.typography.body};font-size:13px;color:${snapshot.colors.textPrimary};"><strong>Date:</strong> ${escapeHtml(
+        formatDateLong(order.created_at),
+      )}</p>
+      <p style="margin:0 0 8px 0;font-family:${snapshot.typography.body};font-size:13px;color:${snapshot.colors.textPrimary};"><strong>Customer:</strong> ${escapeHtml(
+        customerName,
+      )}</p>
+      <p style="margin:0 0 8px 0;font-family:${snapshot.typography.body};font-size:13px;color:${snapshot.colors.textPrimary};"><strong>Email:</strong> ${escapeHtml(
+        customerEmail,
+      )}</p>
+      <p style="margin:0 0 8px 0;font-family:${snapshot.typography.body};font-size:13px;color:${snapshot.colors.textPrimary};"><strong>Phone:</strong> ${escapeHtml(
+        customerPhone,
+      )}</p>
+      <p style="margin:0;font-family:${snapshot.typography.body};font-size:13px;color:${snapshot.colors.textPrimary};"><strong>Payment:</strong> ${escapeHtml(paymentMethodLabel)}</p>
+    </div>
 
-          <div style="border:1px solid #E3DDD4;background:#F9F6F1;padding:16px 18px;">
-            <p style="margin:0 0 8px 0;font-size:13px;color:#1A1A1A;"><strong>Order #:</strong> ${escapeHtml(
-              order.order_number,
-            )}</p>
-            <p style="margin:0 0 8px 0;font-size:13px;color:#1A1A1A;"><strong>Date:</strong> ${escapeHtml(
-              formatDateLong(order.created_at),
-            )}</p>
-            <p style="margin:0 0 8px 0;font-size:13px;color:#1A1A1A;"><strong>Customer:</strong> ${escapeHtml(
-              customerName,
-            )}</p>
-            <p style="margin:0 0 8px 0;font-size:13px;color:#1A1A1A;"><strong>Email:</strong> ${escapeHtml(
-              customerEmail,
-            )}</p>
-            <p style="margin:0 0 8px 0;font-size:13px;color:#1A1A1A;"><strong>Phone:</strong> ${escapeHtml(
-              customerPhone,
-            )}</p>
-            <p style="margin:0;font-size:13px;color:#1A1A1A;"><strong>Payment:</strong> ${escapeHtml(paymentMethodLabel)}</p>
-          </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:24px;border:1px solid ${snapshot.colors.border};">
+      <thead>
+        <tr style="background:${snapshot.colors.primary};color:${snapshot.colors.primaryForeground};">
+          <th style="padding:10px 12px;text-align:left;font-family:${snapshot.typography.body};font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Product</th>
+          <th style="padding:10px 12px;text-align:center;font-family:${snapshot.typography.body};font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Qty</th>
+          <th style="padding:10px 12px;text-align:right;font-family:${snapshot.typography.body};font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Unit Price</th>
+          <th style="padding:10px 12px;text-align:right;font-family:${snapshot.typography.body};font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsRowsHtml}
+      </tbody>
+    </table>
 
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:24px;border:1px solid #E3DDD4;">
-            <thead>
-              <tr style="background:#1A1A1A;color:#F5F0E8;">
-                <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Product</th>
-                <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Qty</th>
-                <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Unit Price</th>
-                <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:normal;letter-spacing:0.08em;text-transform:uppercase;">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsRowsHtml}
-            </tbody>
-          </table>
+    <div style="margin-top:18px;text-align:right;font-family:${snapshot.typography.body};color:${snapshot.colors.textPrimary};">
+      <div style="font-size:14px;line-height:1.7;">Subtotal: ${escapeHtml(formatAmount(subtotal))}</div>
+      <div style="font-size:14px;line-height:1.7;">Shipping: ${escapeHtml(formatAmount(shippingFee))}</div>
+      <div style="font-size:14px;line-height:1.7;">Discount: ${escapeHtml(formatAmount(discount))}</div>
+      <div style="font-size:16px;line-height:1.7;font-weight:600;">Total: ${escapeHtml(formatAmount(total))}</div>
+    </div>
 
-          <div style="margin-top:18px;text-align:right;">
-            <div style="font-size:14px;color:#1A1A1A;line-height:1.7;">Subtotal: ${escapeHtml(formatAmountGhs(subtotal))}</div>
-            <div style="font-size:14px;color:#1A1A1A;line-height:1.7;">Shipping: ${escapeHtml(formatAmountGhs(shippingFee))}</div>
-            <div style="font-size:14px;color:#1A1A1A;line-height:1.7;">Discount: ${escapeHtml(formatAmountGhs(discount))}</div>
-            <div style="font-size:16px;color:#1A1A1A;line-height:1.7;font-weight:bold;">Total: ${escapeHtml(formatAmountGhs(total))}</div>
-          </div>
+    <div style="margin-top:24px;">
+      <p style="margin:0 0 8px 0;font-family:${snapshot.typography.body};font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:${snapshot.colors.textPrimary};">Delivery Address</p>
+      <div style="font-family:${snapshot.typography.body};font-size:14px;line-height:1.8;color:${snapshot.colors.textPrimary};">
+        ${addressLines.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}
+      </div>
+      ${
+        deliveryInstructions
+          ? `<p style="margin:10px 0 0 0;font-family:${snapshot.typography.body};font-size:13px;line-height:1.7;color:${snapshot.colors.textPrimary};"><strong>Instructions:</strong> ${escapeHtml(
+              deliveryInstructions,
+            )}</p>`
+          : ""
+      }
+    </div>
 
-          <div style="margin-top:24px;">
-            <p style="margin:0 0 8px 0;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1A1A1A;">Delivery Address</p>
-            <div style="font-size:14px;line-height:1.8;color:#1A1A1A;">
-              ${addressLines.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}
-            </div>
-            ${
-              deliveryInstructions
-                ? `<p style="margin:10px 0 0 0;font-size:13px;line-height:1.7;color:#1A1A1A;"><strong>Instructions:</strong> ${escapeHtml(
-                    deliveryInstructions,
-                  )}</p>`
-                : ""
-            }
-          </div>
-
-          <div style="margin-top:22px;">
-            <p style="margin:0 0 8px 0;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#1A1A1A;">Payment Method</p>
-            <div style="font-size:14px;line-height:1.8;color:#1A1A1A;">
-              <div>${escapeHtml(paymentMethodLabel)}</div>
-              ${
-                safeString(order.mobile_money_number)
-                  ? `<div>Mobile Money: ${escapeHtml(safeString(order.mobile_money_number) || "")}</div>`
-                  : ""
-              }
-            </div>
-          </div>
-
-          <div style="margin-top:28px;">
-            <a href="${escapeHtml(adminOrderUrl)}" style="display:inline-block;background:#1A1A1A;color:#F5F0E8;padding:14px 32px;text-decoration:none;border-radius:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;">
-              View Order in Admin
-            </a>
-          </div>
-        </div>
-
-        <div style="padding:22px 40px 34px;border-top:1px solid #E3DDD4;text-align:center;">
-          <p style="margin:0 0 10px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:10px;color:#AAAAAA;">Luxuriant - Luxury Fashion & Hair Care</p>
-          <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:10px;color:#AAAAAA;">
-            <a href="${escapeHtml(instagramUrl)}" style="color:#AAAAAA;text-decoration:none;">Instagram</a>
-            &nbsp;|&nbsp;
-            <a href="${escapeHtml(tiktokUrl)}" style="color:#AAAAAA;text-decoration:none;">TikTok</a>
-            &nbsp;|&nbsp;
-            <a href="${escapeHtml(facebookUrl)}" style="color:#AAAAAA;text-decoration:none;">Facebook</a>
-          </p>
-        </div>
+    <div style="margin-top:22px;">
+      <p style="margin:0 0 8px 0;font-family:${snapshot.typography.body};font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:${snapshot.colors.textPrimary};">Payment Method</p>
+      <div style="font-family:${snapshot.typography.body};font-size:14px;line-height:1.8;color:${snapshot.colors.textPrimary};">
+        <div>${escapeHtml(paymentMethodLabel)}</div>
+        ${
+          safeString(order.mobile_money_number)
+            ? `<div>Mobile Money: ${escapeHtml(safeString(order.mobile_money_number) || "")}</div>`
+            : ""
+        }
       </div>
     </div>
+
+    <div style="margin-top:28px;">
+      <a href="${escapeHtml(adminOrderUrl)}" style="display:inline-block;background:${snapshot.colors.primary};color:${snapshot.colors.primaryForeground};padding:14px 32px;text-decoration:none;font-family:${snapshot.typography.body};font-size:11px;letter-spacing:0.15em;text-transform:uppercase;">
+        View Order in Admin
+      </a>
+    </div>
   `;
+
+  return renderEmailShell({
+    snapshot,
+    contentHtml,
+    footerNote: `${storeName} admin order alert`,
+  });
 };
 
 Deno.serve(async (request: Request) => {
@@ -507,18 +504,14 @@ Deno.serve(async (request: Request) => {
     const shippingSnapshot = asRecord(order.shipping_address_snapshot);
     const addressLines = getAddressLines(shippingSnapshot);
     const deliveryInstructions = safeString(shippingSnapshot?.delivery_instructions);
-
-    const siteUrl = (await getSettingValue(adminClient, "site_url")) || SITE_URL;
-    const normalizedSiteUrl = siteUrl.replace(/\/+$/, "");
+    const snapshot = await loadEmailBranding(adminClient, { fallbackSiteUrl: SITE_URL });
+    const normalizedSiteUrl = normalizeSiteUrl(snapshot.identity.siteUrl);
     const adminOrderUrl = `${normalizedSiteUrl}/admin/orders/${encodeURIComponent(order.order_number)}`;
-    const instagramUrl = (await getSettingValue(adminClient, "instagram_url")) || "https://instagram.com/luxuriant";
-    const tiktokUrl = (await getSettingValue(adminClient, "tiktok_url")) || "https://tiktok.com/@luxuriant";
-    const facebookUrl = (await getSettingValue(adminClient, "facebook_url")) || "https://facebook.com/luxuriant";
 
     const notificationPayload = {
       type: "new_order",
       title: "New Order Received",
-      description: `Order ${order.order_number} from ${customerName} - ${formatAmountGhs(safeNumber(order.total))}`,
+      description: `Order ${order.order_number} from ${customerName} - ${formatAmount(safeNumber(order.total))}`,
       link: `/admin/orders/${order.order_number}`,
       is_read: false,
     };
@@ -549,11 +542,15 @@ Deno.serve(async (request: Request) => {
       resendErrorMessage = "RESEND_API_KEY is not configured";
       console.error(resendErrorMessage);
     } else {
-      const itemsRowsHtml = buildItemsRowsHtml(orderItems);
+      const itemsRowsHtml = buildItemsRowsHtml(orderItems, {
+        border: snapshot.colors.border,
+        textPrimary: snapshot.colors.textPrimary,
+        textMuted: snapshot.colors.textMuted,
+        primary: snapshot.colors.primary,
+        primaryForeground: snapshot.colors.primaryForeground,
+        bodyFont: snapshot.typography.body,
+      });
       const emailHtml = buildEmailHtml({
-        instagramUrl,
-        tiktokUrl,
-        facebookUrl,
         adminOrderUrl,
         order,
         customerName,
@@ -563,10 +560,12 @@ Deno.serve(async (request: Request) => {
         deliveryInstructions,
         paymentMethodLabel,
         itemsRowsHtml,
+        storeName: snapshot.identity.storeName,
+        snapshot,
       });
 
       const emailText = [
-        "A new order has been placed.",
+        `A new order has been placed on ${snapshot.identity.storeName}.`,
         "",
         `Order #: ${order.order_number}`,
         `Date: ${formatDateLong(order.created_at)}`,
@@ -576,20 +575,18 @@ Deno.serve(async (request: Request) => {
         `Payment: ${paymentMethodLabel}`,
         "",
         "Items:",
-        ...orderItems.map(
-          (item) => {
-            const variantLabel = getVariantLabel(item);
-            const itemName = variantLabel ? `${item.product_name} (${variantLabel})` : item.product_name;
-            return `- ${itemName} | Qty: ${Math.max(1, Math.round(safeNumber(item.quantity, 1)))} | Unit: ${formatAmountGhs(
-              safeNumber(item.unit_price),
-            )} | Subtotal: ${formatAmountGhs(safeNumber(item.subtotal))}`;
-          },
-        ),
+        ...orderItems.map((item) => {
+          const variantLabel = getVariantLabel(item);
+          const itemName = variantLabel ? `${item.product_name} (${variantLabel})` : item.product_name;
+          return `- ${itemName} | Qty: ${Math.max(1, Math.round(safeNumber(item.quantity, 1)))} | Unit: ${formatAmount(
+            safeNumber(item.unit_price),
+          )} | Subtotal: ${formatAmount(safeNumber(item.subtotal))}`;
+        }),
         "",
-        `Subtotal: ${formatAmountGhs(safeNumber(order.subtotal))}`,
-        `Shipping: ${formatAmountGhs(safeNumber(order.shipping_fee))}`,
-        `Discount: ${formatAmountGhs(Math.max(0, safeNumber(order.discount_amount)))}`,
-        `Total: ${formatAmountGhs(safeNumber(order.total))}`,
+        `Subtotal: ${formatAmount(safeNumber(order.subtotal))}`,
+        `Shipping: ${formatAmount(safeNumber(order.shipping_fee))}`,
+        `Discount: ${formatAmount(Math.max(0, safeNumber(order.discount_amount)))}`,
+        `Total: ${formatAmount(safeNumber(order.total))}`,
         "",
         "Delivery Address:",
         ...(addressLines.length > 0 ? addressLines : ["No delivery address provided"]),
@@ -611,8 +608,11 @@ Deno.serve(async (request: Request) => {
           },
           body: JSON.stringify({
             to: [adminNotificationEmail],
-            from: fromEmail,
-            subject: `New Order ${order.order_number} - ${formatAmountGhs(safeNumber(order.total))}`,
+            from: formatFromEmail(
+              `${snapshot.identity.storeName} Orders`,
+              Deno.env.get("ADMIN_NOTIFICATION_FROM_EMAIL_ADDRESS") ?? "orders@luxuriantgh.store",
+            ),
+            subject: `New Order ${order.order_number} - ${formatAmount(safeNumber(order.total))}`,
             html: emailHtml,
             text: emailText,
           }),

@@ -1,6 +1,6 @@
 import { Instagram, Mail, MessageCircle, Phone } from "lucide-react";
-import { storeConfig } from "@/config/store.config";
-import { getWhatsAppContactLink } from "@/lib/contact";
+import { useStorefrontConfig } from "@/contexts/StorefrontConfigContext";
+import { buildWhatsAppContactLink } from "@/lib/contact";
 
 interface SocialCard {
   label: string;
@@ -22,11 +22,12 @@ const toDisplayHandle = (value: string): string => {
 };
 
 const Contact = () => {
+  const { storefrontConfig } = useStorefrontConfig();
   const socialCards: SocialCard[] = [
-    { label: "Instagram", href: storeConfig.socials.instagram, value: toDisplayHandle(storeConfig.socials.instagram) },
-    { label: "Facebook", href: storeConfig.socials.facebook, value: toDisplayHandle(storeConfig.socials.facebook) },
-    { label: "Twitter", href: storeConfig.socials.twitter, value: toDisplayHandle(storeConfig.socials.twitter) },
-    { label: "TikTok", href: storeConfig.socials.tiktok, value: toDisplayHandle(storeConfig.socials.tiktok) },
+    { label: "Instagram", href: storefrontConfig.socials.instagram, value: toDisplayHandle(storefrontConfig.socials.instagram) },
+    { label: "Facebook", href: storefrontConfig.socials.facebook, value: toDisplayHandle(storefrontConfig.socials.facebook) },
+    { label: "Twitter", href: storefrontConfig.socials.twitter, value: toDisplayHandle(storefrontConfig.socials.twitter) },
+    { label: "TikTok", href: storefrontConfig.socials.tiktok, value: toDisplayHandle(storefrontConfig.socials.tiktok) },
   ].filter((entry) => Boolean(entry.href.trim()));
 
   return (
@@ -37,9 +38,9 @@ const Contact = () => {
       </p>
 
       <div className="space-y-6">
-        {storeConfig.contact.whatsapp ? (
+        {storefrontConfig.contact.whatsapp ? (
           <a
-            href={getWhatsAppContactLink()}
+            href={buildWhatsAppContactLink(storefrontConfig.storeName, storefrontConfig.contact.whatsapp)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-5 rounded-2xl border border-border bg-card p-6 transition-shadow hover:shadow-lg"
@@ -49,14 +50,14 @@ const Contact = () => {
             </div>
             <div>
               <h3 className="font-display text-lg font-semibold">WhatsApp</h3>
-              <p className="font-body text-sm text-muted-foreground">{storeConfig.contact.whatsapp}</p>
+              <p className="font-body text-sm text-muted-foreground">{storefrontConfig.contact.whatsapp}</p>
             </div>
           </a>
         ) : null}
 
-        {storeConfig.contact.phone ? (
+        {storefrontConfig.contact.phone ? (
           <a
-            href={`tel:${storeConfig.contact.phone}`}
+            href={`tel:${storefrontConfig.contact.phone}`}
             className="flex items-center gap-5 rounded-2xl border border-border bg-card p-6 transition-shadow hover:shadow-lg"
           >
             <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary">
@@ -64,14 +65,14 @@ const Contact = () => {
             </div>
             <div>
               <h3 className="font-display text-lg font-semibold">Phone</h3>
-              <p className="font-body text-sm text-muted-foreground">{storeConfig.contact.phone}</p>
+              <p className="font-body text-sm text-muted-foreground">{storefrontConfig.contact.phone}</p>
             </div>
           </a>
         ) : null}
 
-        {storeConfig.contact.email ? (
+        {storefrontConfig.contact.email ? (
           <a
-            href={`mailto:${storeConfig.contact.email}`}
+            href={`mailto:${storefrontConfig.contact.email}`}
             className="flex items-center gap-5 rounded-2xl border border-border bg-card p-6 transition-shadow hover:shadow-lg"
           >
             <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-accent">
@@ -79,7 +80,7 @@ const Contact = () => {
             </div>
             <div>
               <h3 className="font-display text-lg font-semibold">Email</h3>
-              <p className="font-body text-sm text-muted-foreground">{storeConfig.contact.email}</p>
+              <p className="font-body text-sm text-muted-foreground">{storefrontConfig.contact.email}</p>
             </div>
           </a>
         ) : null}

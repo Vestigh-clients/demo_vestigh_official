@@ -1,4 +1,5 @@
-export type BorderRadiusPreset = "sm" | "md" | "lg";
+import type { ThemePresetKey } from "../themes/registry";
+
 export type CurrencyPosition = "before" | "after";
 export type PaymentMode = "subaccount" | "own_account";
 export type PaystackChargeBearer = "account" | "subaccount";
@@ -45,15 +46,7 @@ export interface StoreConfig {
   storeTagline: string;
   logoUrl: string;
   faviconUrl: string;
-  theme: {
-    primaryColor: string;
-    secondaryColor: string;
-    accentColor: string;
-    navbarSolidBackgroundColor: string;
-    fontHeading: string;
-    fontBody: string;
-    borderRadius: BorderRadiusPreset;
-  };
+  defaultThemePreset: ThemePresetKey;
   contact: {
     email: string;
     phone: string;
@@ -83,12 +76,6 @@ export interface StoreConfig {
   };
   categories: CategoryConfig[];
   categoryPage: CategoryPageConfig;
-  pages: {
-    heroTitle: string;
-    heroSubtitle: string;
-    heroImageUrl: string;
-    aboutText: string;
-  };
   payments: PaymentsConfig;
   styleSyncs: {
     apiKey: string | undefined;
@@ -98,7 +85,7 @@ export interface StoreConfig {
 
 export type BrandingConfig = Pick<
   StoreConfig,
-  "storeName" | "storeTagline" | "logoUrl" | "faviconUrl" | "theme" | "contact" | "socials" | "currency" | "pages"
+  "storeName" | "storeTagline" | "logoUrl" | "faviconUrl" | "defaultThemePreset" | "contact" | "socials" | "currency"
 >;
 
 export type CatalogConfig = Pick<StoreConfig, "categories" | "categoryPage">;

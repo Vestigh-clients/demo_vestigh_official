@@ -4,9 +4,10 @@ interface CategoryCardProps {
   name: string;
   slug: string;
   imageUrl: string;
+  ctaLabel: string;
 }
 
-const CategoryCard = ({ name, slug, imageUrl }: CategoryCardProps) => {
+const CategoryCard = ({ name, slug, imageUrl, ctaLabel }: CategoryCardProps) => {
   const normalizedImageUrl = imageUrl.trim();
   const hasImage = normalizedImageUrl.length > 0;
 
@@ -25,7 +26,7 @@ const CategoryCard = ({ name, slug, imageUrl }: CategoryCardProps) => {
         )}
       </div>
       <h3 className="mt-4 font-display text-[18px] font-normal text-foreground leading-snug text-left">{name}</h3>
-      <p className="mt-1 font-body font-light text-[12px] tracking-[0.1em] text-accent text-left">{"Shop Now ->"}</p>
+      <p className="mt-1 font-body font-light text-[12px] tracking-[0.1em] text-accent text-left">{ctaLabel}</p>
     </Link>
   );
 };

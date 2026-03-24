@@ -3,9 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { LayoutDashboard, Menu, ShoppingBag, X } from "lucide-react";
 import SignOutConfirmModal from "@/components/auth/SignOutConfirmModal";
 import StoreLogo from "@/components/StoreLogo";
-import { storeConfig } from "@/config/store.config";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useStorefrontConfig } from "@/contexts/StorefrontConfigContext";
 import { useSignOutWithCartWarning } from "@/hooks/useSignOutWithCartWarning";
 
 const baseNavLinks = [
@@ -109,6 +109,7 @@ const Navbar = () => {
   const [isDesktopUserMenuOpen, setIsDesktopUserMenuOpen] = useState(false);
   const [isMobileUserMenuOpen, setIsMobileUserMenuOpen] = useState(false);
 
+  const { storefrontConfig } = useStorefrontConfig();
   const location = useLocation();
   const normalizedPathname = useMemo(() => {
     const trimmedPathname = location.pathname.replace(/\/+$/, "");
@@ -124,14 +125,14 @@ const Navbar = () => {
   const badgeResetTimeoutRef = useRef<number | null>(null);
   const enabledCategories = useMemo(
     () =>
-      storeConfig.categories
+      storefrontConfig.categories
         .filter((category) => category.enabled)
         .map((category) => ({
           ...category,
           slug: category.slug.trim().toLowerCase(),
         }))
         .filter((category) => category.slug.length > 0),
-    [],
+    [storefrontConfig.categories],
   );
   const isTransparentRoute = useMemo(() => {
     if (normalizedPathname === "/") {
@@ -379,7 +380,7 @@ const Navbar = () => {
         }`}
       >
         <div className="container mx-auto flex items-center justify-between py-5 px-4">
-          <Link to="/" aria-label={`${storeConfig.storeName} home`} className="inline-flex items-center">
+          <Link to="/" aria-label={`${storefrontConfig.storeName} home`} className="inline-flex items-center">
             <StoreLogo
               className="h-10 w-auto sm:h-12 lg:h-14"
               textClassName={`text-[20px] sm:text-[24px] ${isTransparentRoute ? "text-white" : "text-foreground"}`}

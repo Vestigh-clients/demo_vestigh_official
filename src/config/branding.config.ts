@@ -5,15 +5,7 @@ export const brandingConfig: BrandingConfig = {
   storeTagline: "Your store tagline",
   logoUrl: "assets/vicky_logo_white.png",
   faviconUrl: "/favicon.ico",
-  theme: {
-    primaryColor: "#243843", // deep navy-teal used in the services panel
-    secondaryColor: "#ffffff", // light grey background
-    accentColor: "#4A5D66", // muted steel blue derived from primary
-    navbarSolidBackgroundColor: "#243843", // solid navbar background for non-hero pages
-    fontHeading: "Playfair Display",
-    fontBody: "Inter",
-    borderRadius: "lg", // rounded cards seen in the service grid
-  },
+  defaultThemePreset: "atelier",
   contact: {
     email: "hello@store.com",
     phone: "",
@@ -32,11 +24,5 @@ export const brandingConfig: BrandingConfig = {
     code: "GHS",
     symbol: "GH\u20B5",
     position: "before",
-  },
-  pages: {
-    heroTitle: "Discover Your Style",
-    heroSubtitle: "Shop the latest fashion",
-    heroImageUrl: "/hero.jpg",
-    aboutText: "",
   },
 };

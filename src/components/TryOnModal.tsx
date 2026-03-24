@@ -1,7 +1,7 @@
 ﻿import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { AlertCircle, Camera, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { storeConfig } from "@/config/store.config";
+import { useStorefrontConfig } from "@/contexts/StorefrontConfigContext";
 import { runTryOnWithPolling } from "@/services/tryOnService";
 import type { Product } from "@/types/product";
 import { getPrimaryImage } from "@/types/product";
@@ -14,6 +14,7 @@ type TryOnModalProps = {
 };
 
 const TryOnModal = ({ product, isOpen, onClose }: TryOnModalProps) => {
+  const { storefrontConfig } = useStorefrontConfig();
   const [tryOnState, setTryOnState] = useState<TryOnState>("upload");
   const [modelFile, setModelFile] = useState<File | null>(null);
   const [modelPreview, setModelPreview] = useState<string | null>(null);
@@ -342,7 +343,7 @@ const TryOnModal = ({ product, isOpen, onClose }: TryOnModalProps) => {
                 }
                 const link = document.createElement("a");
                 link.href = resultImage;
-                const normalizedStoreName = storeConfig.storeName.toLowerCase().replace(/\s+/g, "-");
+                const normalizedStoreName = storefrontConfig.storeName.toLowerCase().replace(/\s+/g, "-");
                 link.download = `${normalizedStoreName}-tryon-${product.slug}.png`;
                 link.click();
               }}

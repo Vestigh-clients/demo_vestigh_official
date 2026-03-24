@@ -26,12 +26,40 @@ const colorVarNameByToken: Record<keyof ThemePreset["tokens"], string> = {
   shadowSoft: "--theme-shadow-soft",
 };
 
+const buttonVarNameByToken: Record<keyof ThemePreset["components"]["button"], string> = {
+  primaryBg: "--theme-button-primary-bg",
+  primaryFg: "--theme-button-primary-fg",
+  primaryHoverBg: "--theme-button-primary-hover-bg",
+  secondaryBg: "--theme-button-secondary-bg",
+  secondaryFg: "--theme-button-secondary-fg",
+  secondaryHoverBg: "--theme-button-secondary-hover-bg",
+  outlineBg: "--theme-button-outline-bg",
+  outlineFg: "--theme-button-outline-fg",
+  outlineBorder: "--theme-button-outline-border",
+  outlineHoverBg: "--theme-button-outline-hover-bg",
+  outlineHoverFg: "--theme-button-outline-hover-fg",
+  ghostFg: "--theme-button-ghost-fg",
+  ghostHoverBg: "--theme-button-ghost-hover-bg",
+  ghostHoverFg: "--theme-button-ghost-hover-fg",
+  destructiveBg: "--theme-button-destructive-bg",
+  destructiveFg: "--theme-button-destructive-fg",
+  destructiveHoverBg: "--theme-button-destructive-hover-bg",
+  linkFg: "--theme-button-link-fg",
+  linkHoverFg: "--theme-button-link-hover-fg",
+};
+
 export const compileThemeVars = (preset: ThemePreset): Record<string, string> => {
   const mutedSoft = mixHex(preset.tokens.textMuted, preset.tokens.canvas, 0.35);
 
   return {
     ...Object.fromEntries(
       Object.entries(preset.tokens).map(([tokenName, value]) => [colorVarNameByToken[tokenName as keyof ThemePreset["tokens"]], value]),
+    ),
+    ...Object.fromEntries(
+      Object.entries(preset.components.button).map(([tokenName, value]) => [
+        buttonVarNameByToken[tokenName as keyof ThemePreset["components"]["button"]],
+        value,
+      ]),
     ),
     "--theme-heading-font": buildFontStack(preset.typography.headingFamily, preset.typography.headingFallback),
     "--theme-body-font": buildFontStack(preset.typography.bodyFamily, preset.typography.bodyFallback),

@@ -26,6 +26,25 @@
     --theme-nav-solid-interactive: #d7e0e4;
     --theme-focus-ring: #4a5d66;
     --theme-shadow-soft: 0 18px 40px rgba(36, 56, 67, 0.08);
+    --theme-button-primary-bg: #243843;
+    --theme-button-primary-fg: #ffffff;
+    --theme-button-primary-hover-bg: #4a5d66;
+    --theme-button-secondary-bg: #f4f7f8;
+    --theme-button-secondary-fg: #243843;
+    --theme-button-secondary-hover-bg: #d7e0e4;
+    --theme-button-outline-bg: #ffffff;
+    --theme-button-outline-fg: #243843;
+    --theme-button-outline-border: #d7e0e4;
+    --theme-button-outline-hover-bg: #4a5d66;
+    --theme-button-outline-hover-fg: #ffffff;
+    --theme-button-ghost-fg: #243843;
+    --theme-button-ghost-hover-bg: #f4f7f8;
+    --theme-button-ghost-hover-fg: #243843;
+    --theme-button-destructive-bg: #c0392b;
+    --theme-button-destructive-fg: #ffffff;
+    --theme-button-destructive-hover-bg: #a83226;
+    --theme-button-link-fg: #243843;
+    --theme-button-link-hover-fg: #4a5d66;
 
     --color-primary: #243843;
     --color-secondary: #ffffff;

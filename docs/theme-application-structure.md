@@ -37,6 +37,26 @@
   - `navSolidInteractive`
   - `focusRing`
   - `shadowSoft`
+- `ThemeComponentTokens.button` must define:
+  - `primaryBg`
+  - `primaryFg`
+  - `primaryHoverBg`
+  - `secondaryBg`
+  - `secondaryFg`
+  - `secondaryHoverBg`
+  - `outlineBg`
+  - `outlineFg`
+  - `outlineBorder`
+  - `outlineHoverBg`
+  - `outlineHoverFg`
+  - `ghostFg`
+  - `ghostHoverBg`
+  - `ghostHoverFg`
+  - `destructiveBg`
+  - `destructiveFg`
+  - `destructiveHoverBg`
+  - `linkFg`
+  - `linkHoverFg`
 - Typography must define:
   - `headingFamily`
   - `bodyFamily`
@@ -53,6 +73,7 @@
 - The storefront uses the public `site_settings.site_theme_preset` value when it is valid.
 - If the runtime value is missing or invalid, the app falls back to `branding.config.ts` `defaultThemePreset`.
 - [`src/contexts/ThemeContext.tsx`](/c:/Users/agyek/bible/base/src/contexts/ThemeContext.tsx) loads the active preset fonts, compiles CSS variables, and applies them to `document.documentElement`.
+- Shared buttons now consume explicit component tokens from [`src/components/ui/button.tsx`](/c:/Users/agyek/bible/base/src/components/ui/button.tsx) instead of assuming every action should use the generic `primary` token.
 
 ## Admin Preset Selection
 - Admin theme selection is managed from [`src/pages/admin/AdminSettingsPage.tsx`](/c:/Users/agyek/bible/base/src/pages/admin/AdminSettingsPage.tsx).
@@ -71,6 +92,7 @@
 3. Register the preset in [`src/themes/registry.ts`](/c:/Users/agyek/bible/base/src/themes/registry.ts).
 4. Optionally set it as `defaultThemePreset` in [`src/config/branding.config.ts`](/c:/Users/agyek/bible/base/src/config/branding.config.ts).
 5. If admins should be able to choose it, no extra UI work is needed once it is registered.
+6. Define button tokens intentionally. Do not assume `primary` is the correct color for every button state.
 
 ## Validation Checklist
 - The preset is registered and its key appears in the admin settings dropdown.
@@ -78,4 +100,5 @@
 - `npm run build` passes.
 - Navbar, footer, auth layout, product pages, and admin pages render with the new preset.
 - Email templates use the correct store name, CTA colors, and typography.
+- Shared button variants still read clearly and preserve action hierarchy under the new preset.
 - Homepage and footer content still come from `content.config.ts`, not from component-local constants.

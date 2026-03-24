@@ -8,6 +8,9 @@ describe("compileThemeVars", () => {
 
     expect(vars["--theme-primary"]).toBe("#243843");
     expect(vars["--theme-accent"]).toBe("#4A5D66");
+    expect(vars["--theme-button-primary-bg"]).toBe("#243843");
+    expect(vars["--theme-button-primary-hover-bg"]).toBe("#4A5D66");
+    expect(vars["--theme-button-outline-hover-fg"]).toBe("#FFFFFF");
     expect(vars["--theme-heading-font"]).toContain("Playfair Display");
     expect(vars["--theme-body-font"]).toContain("Inter");
     expect(vars["--theme-radius-md"]).toBe("0.75rem");

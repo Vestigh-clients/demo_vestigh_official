@@ -29,6 +29,32 @@ export interface ThemeTokens {
   shadowSoft: string;
 }
 
+export interface ThemeButtonTokens {
+  primaryBg: string;
+  primaryFg: string;
+  primaryHoverBg: string;
+  secondaryBg: string;
+  secondaryFg: string;
+  secondaryHoverBg: string;
+  outlineBg: string;
+  outlineFg: string;
+  outlineBorder: string;
+  outlineHoverBg: string;
+  outlineHoverFg: string;
+  ghostFg: string;
+  ghostHoverBg: string;
+  ghostHoverFg: string;
+  destructiveBg: string;
+  destructiveFg: string;
+  destructiveHoverBg: string;
+  linkFg: string;
+  linkHoverFg: string;
+}
+
+export interface ThemeComponentTokens {
+  button: ThemeButtonTokens;
+}
+
 export interface ThemeTypography {
   headingFamily: string;
   bodyFamily: string;
@@ -48,6 +74,7 @@ export interface ThemePreset {
   label: string;
   description: string;
   tokens: ThemeTokens;
+  components: ThemeComponentTokens;
   typography: ThemeTypography;
   radius: ThemeRadiusScale;
 }
